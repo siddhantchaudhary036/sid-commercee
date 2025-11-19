@@ -1,7 +1,8 @@
 import { Webhook } from "svix";
 import { headers } from "next/headers";
-import { api } from "@/convex/_generated/api";
-import { fetchMutation } from "convex/nextjs";
+import { ConvexHttpClient } from "convex/browser";
+
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
 
 export async function POST(req) {
     const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -42,7 +43,7 @@ export async function POST(req) {
         const { id, email_addresses, first_name, last_name, image_url, username } = evt.data;
 
         try {
-            await fetchMutation(api.users.createUser, {
+            await convex.mutation("users:createUser", {
                 clerkId: id,
                 email: email_addresses[0].email_address,
                 firstName: first_name || undefined,
@@ -60,7 +61,7 @@ export async function POST(req) {
         const { id, email_addresses, first_name, last_name, image_url, username } = evt.data;
 
         try {
-            await fetchMutation(api.users.updateUser, {
+            await convex.mutation("users:updateUser", {
                 clerkId: id,
                 email: email_addresses[0].email_address,
                 firstName: first_name || undefined,
@@ -78,7 +79,7 @@ export async function POST(req) {
         const { id } = evt.data;
 
         try {
-            await fetchMutation(api.users.deleteUser, {
+            await convex.mutation("users:deleteUser", {
                 clerkId: id,
             });
         } catch (error) {
