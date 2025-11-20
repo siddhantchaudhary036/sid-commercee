@@ -223,7 +223,8 @@ export default defineSchema({
           id: v.string(),
           type: v.string(), // "trigger", "email", "delay", "condition"
           data: v.any(), // Node-specific data
-          position: v.object({ x: v.number(), y: v.number() }),
+          position: v.object({ x: v.float64(), y: v.float64() }),
+          measured: v.optional(v.object({ width: v.float64(), height: v.float64() })), // ReactFlow internal
         })
       ),
       edges: v.array(

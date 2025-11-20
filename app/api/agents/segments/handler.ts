@@ -101,6 +101,12 @@ async function executeAction(actionRequest: any, userId: string) {
   try {
     switch (action) {
       case "create_segment":
+        console.log('💾 [SEGMENTS AGENT] Creating segment with params:', {
+          name: parameters.name,
+          conditions: parameters.conditions,
+          userId
+        });
+        
         const segmentId = await fetchMutation(api.segments.create, {
           userId: userId as any,
           name: parameters.name,
@@ -110,9 +116,13 @@ async function executeAction(actionRequest: any, userId: string) {
           aiPrompt: parameters.name
         });
         
+        console.log('✅ [SEGMENTS AGENT] Segment created with ID:', segmentId);
+        
         const segment = await fetchQuery(api.segments.getById, {
           id: segmentId as any
         });
+        
+        console.log('📊 [SEGMENTS AGENT] Segment customer count:', segment?.customerCount || 0);
         
         return {
           success: true,

@@ -50,6 +50,8 @@ Respond in JSON format:
     const planResult = await planningModel.generateContent(planningPrompt);
     const planText = planResult.response.text();
     
+    console.log('🎯 [ORCHESTRATOR] Raw AI planning response:', planText);
+    
     // Extract JSON from response
     const jsonMatch = planText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -57,6 +59,7 @@ Respond in JSON format:
     }
     
     const plan = JSON.parse(jsonMatch[0]);
+    console.log('🎯 [ORCHESTRATOR] Parsed plan:', JSON.stringify(plan, null, 2));
     
     steps.push(`🎯 **Task Analysis**`);
     steps.push(`Target: ${plan.audience}`);
@@ -191,6 +194,14 @@ Respond in JSON format:
     const segmentName = `${plan.campaignType.charAt(0).toUpperCase() + plan.campaignType.slice(1)} - ${plan.audience.substring(0, 30)}`;
     const segmentDescription = `Auto-generated segment for: ${message.substring(0, 100)}`;
     
+    console.log('💾 [ORCHESTRATOR] Creating segment with params:', {
+      segmentName,
+      conditions: segmentConditions.length > 0 ? segmentConditions : [
+        { field: 'emailOptIn', operator: '=', value: 'true' }
+      ],
+      userId
+    });
+    
     const segmentId = await fetchMutation(api.segments.create, {
       userId: userId as any,
       name: segmentName,
@@ -201,6 +212,8 @@ Respond in JSON format:
       aiGenerated: true,
       aiPrompt: message
     });
+    
+    console.log('✅ [ORCHESTRATOR] Segment created with ID:', segmentId);
     
     steps.push(`✓ Created segment: "${segmentName}"`);
     steps.push(`✓ Segment size: ${customers.total} customers`);
@@ -319,6 +332,12 @@ BODY:
     
     const campaignName = segmentName;
     
+    console.log('📧 [ORCHESTRATOR] Creating campaign with params:', {
+      campaignName,
+      subject,
+      segmentId
+    });
+    
     const campaignId = await fetchMutation(api.campaigns.create, {
       userId: userId as any,
       name: campaignName,
@@ -329,6 +348,8 @@ BODY:
       aiGenerated: true,
       aiPrompt: message
     });
+    
+    console.log('✅ [ORCHESTRATOR] Campaign created with ID:', campaignId);
     
     steps.push(`✓ Created campaign: "${campaignName}"`);
     steps.push(`✓ Status: Draft (ready for review)`);

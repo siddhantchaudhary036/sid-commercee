@@ -91,8 +91,8 @@ export const create = mutation({
           id: v.string(),
           type: v.string(),
           data: v.any(),
-          position: v.object({ x: v.number(), y: v.number() }),
-          measured: v.optional(v.object({ width: v.number(), height: v.number() })),
+          position: v.object({ x: v.float64(), y: v.float64() }),
+          measured: v.optional(v.object({ width: v.float64(), height: v.float64() })),
         })
       ),
       edges: v.array(
@@ -145,8 +145,8 @@ export const update = mutation({
             id: v.string(),
             type: v.string(),
             data: v.any(),
-            position: v.object({ x: v.number(), y: v.number() }),
-            measured: v.optional(v.object({ width: v.number(), height: v.number() })),
+            position: v.object({ x: v.float64(), y: v.float64() }),
+            measured: v.optional(v.object({ width: v.float64(), height: v.float64() })),
           })
         ),
         edges: v.array(

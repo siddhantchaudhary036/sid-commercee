@@ -48,6 +48,8 @@ Respond in JSON format:
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     
+    console.log('🔄 [FLOWS AGENT] Raw AI response:', text);
+    
     // Extract JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -55,6 +57,7 @@ Respond in JSON format:
     }
     
     const plan = JSON.parse(jsonMatch[0]);
+    console.log('🔄 [FLOWS AGENT] Parsed plan:', JSON.stringify(plan, null, 2));
     
     return await buildFlow(plan, message, userId);
 
@@ -92,30 +95,37 @@ async function buildFlow(
       
       if (plan.flowType === 'welcome') {
         conditions = [
-          { field: 'emailOptIn', operator: '=', value: 'true' },
-          { field: 'totalOrders', operator: '=', value: '0' }
+          { field: 'emailOptIn', operator: '=', value: true },
+          { field: 'totalOrders', operator: '<=', value: 1 }
         ];
-        steps.push(`✓ Trigger: New customers (0 orders, email subscribers)`);
+        console.log('🎯 [FLOWS AGENT] Creating welcome segment with conditions:', JSON.stringify(conditions, null, 2));
+        steps.push(`✓ Trigger: New customers (1 or fewer orders, email subscribers)`);
       } else if (plan.flowType === 'winback') {
         conditions = [
-          { field: 'daysSinceLastOrder', operator: '>=', value: '90' },
-          { field: 'totalOrders', operator: '>=', value: '3' },
-          { field: 'emailOptIn', operator: '=', value: 'true' }
+          { field: 'daysSinceLastOrder', operator: '>=', value: 90 },
+          { field: 'totalOrders', operator: '>=', value: 3 },
+          { field: 'emailOptIn', operator: '=', value: true }
         ];
         steps.push(`✓ Trigger: Inactive customers (90+ days, 3+ orders)`);
       } else if (plan.flowType === 'post_purchase') {
         conditions = [
-          { field: 'daysSinceLastOrder', operator: '<=', value: '7' },
-          { field: 'emailOptIn', operator: '=', value: 'true' }
+          { field: 'daysSinceLastOrder', operator: '<=', value: 7 },
+          { field: 'emailOptIn', operator: '=', value: true }
         ];
         steps.push(`✓ Trigger: Recent purchasers (within 7 days)`);
       } else {
         // Default: email subscribers
         conditions = [
-          { field: 'emailOptIn', operator: '=', value: 'true' }
+          { field: 'emailOptIn', operator: '=', value: true }
         ];
         steps.push(`✓ Trigger: Email subscribers`);
       }
+      
+      console.log('💾 [FLOWS AGENT] Creating segment with params:', {
+        segmentName,
+        conditions,
+        userId
+      });
       
       segmentId = await fetchMutation(api.segments.create, {
         userId: userId as any,
@@ -125,6 +135,8 @@ async function buildFlow(
         aiGenerated: true,
         aiPrompt: originalMessage
       });
+      
+      console.log('✅ [FLOWS AGENT] Segment created with ID:', segmentId);
       
       steps.push(`✓ Created segment: "${segmentName}"`);
     } else {
@@ -180,6 +192,11 @@ BODY:
       const body = bodyMatch ? bodyMatch[1].trim() : emailContent;
       
       // Create email template
+      console.log(`📧 [FLOWS AGENT] Creating email template ${email.sequence}:`, {
+        name: `${plan.flowName} - Email ${email.sequence}`,
+        subject
+      });
+      
       const templateId = await fetchMutation(api.emailTemplates.create, {
         userId: userId as any,
         name: `${plan.flowName} - Email ${email.sequence}`,
@@ -188,6 +205,8 @@ BODY:
         category: plan.flowType,
         description: email.purpose
       });
+      
+      console.log(`✅ [FLOWS AGENT] Email template ${email.sequence} created with ID:`, templateId);
       
       emailTemplateIds.push({
         templateId,
@@ -285,6 +304,13 @@ BODY:
     // Step 4: Create the flow
     steps.push(`💾 **Step 4: Saving Flow**`);
     
+    console.log('🔧 [FLOWS AGENT] Creating flow with definition:', {
+      name: plan.flowName,
+      triggerType: plan.triggerType,
+      nodeCount: nodes.length,
+      edgeCount: edges.length
+    });
+    
     const flowId = await fetchMutation(api.flows.create, {
       userId: userId as any,
       name: plan.flowName,
@@ -299,6 +325,8 @@ BODY:
         edges
       }
     });
+    
+    console.log('✅ [FLOWS AGENT] Flow created with ID:', flowId);
     
     steps.push(`✓ Flow created: "${plan.flowName}"`);
     steps.push(`✓ Status: Draft (ready for review)`);

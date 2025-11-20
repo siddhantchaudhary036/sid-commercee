@@ -31,7 +31,9 @@ export async function POST(request: Request) {
     }
 
     // Step 1: Route to appropriate agent
+    console.log('🚀 [MAIN AGENT] Received message:', message);
     const routing = await routeToAgent(message, conversationHistory);
+    console.log('🎯 [MAIN AGENT] Routing decision:', JSON.stringify(routing, null, 2));
     
     // Step 2: Call specialist agent directly
     let response: string;
@@ -58,6 +60,8 @@ export async function POST(request: Request) {
         response = "I'm not sure how to help with that.";
     }
 
+    console.log('✅ [MAIN AGENT] Response generated, length:', response.length, 'chars');
+    
     return NextResponse.json({
       response,
       agent: routing.agent,
@@ -86,13 +90,18 @@ async function routeToAgent(
   const result = await routingModel.generateContent(routingPrompt);
   const text = result.response.text();
   
+  console.log('🔀 [ROUTER] Raw AI response:', text);
+  
   // Extract JSON from response
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error("Failed to parse routing response");
   }
   
-  return JSON.parse(jsonMatch[0]);
+  const parsed = JSON.parse(jsonMatch[0]);
+  console.log('🔀 [ROUTER] Parsed routing:', JSON.stringify(parsed, null, 2));
+  
+  return parsed;
 }
 
 function buildRoutingPrompt(
