@@ -75,3 +75,16 @@ export const getUserByClerkId = query({
       .first();
   },
 });
+
+// Get current user (alias for getUserByClerkId)
+export const getCurrentUser = query({
+  args: {
+    clerkId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+  },
+});

@@ -6,11 +6,13 @@ const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+    
     const conversation = await convex.query(api.dashboard.getConversation, {
-      conversationId: params.id as any,
+      conversationId: id as any,
     });
 
     if (!conversation) {

@@ -20,12 +20,14 @@ Available actions:
 3. list_segments - List all existing segments
 4. get_segment_details - Get full segment information
 
-When you need to take an action, respond with JSON:
+CRITICAL: When you need to take an action, respond ONLY with JSON (no additional text):
 {
   "action": "create_segment" | "get_segment_preview" | "list_segments" | "get_segment_details",
   "parameters": { /* action-specific parameters */ },
   "reasoning": "Why you're taking this action"
 }
+
+After the action is executed, you'll receive the results and should provide a conversational response WITHOUT any JSON.
 
 Segment conditions format:
 [
@@ -38,11 +40,12 @@ Available fields: totalSpent, totalOrders, averageOrderValue, daysSinceLastOrder
 Available operators: =, !=, >, <, >=, <=, contains, in
 
 Guidelines:
-- Always preview segments before creating
+- Always preview segments before creating (unless user explicitly confirms)
 - Suggest descriptive names
 - Explain conditions in plain English
 - Recommend minimum 20 customers for campaigns
-- Multiple conditions use AND logic`;
+- Multiple conditions use AND logic
+- When user says "make a segment" or "create a segment", go ahead and create it directly`;
 
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
@@ -66,11 +69,21 @@ Guidelines:
         const actionRequest = JSON.parse(jsonMatch[0]);
         const data = await executeAction(actionRequest, userId);
         
-        const dataMessage = `Here's the result:\n\n${JSON.stringify(data, null, 2)}\n\nNow provide a conversational response to the user.`;
-        result = await chat.sendMessage(dataMessage);
-        responseText = result.response.text();
+        // Remove the JSON from the response
+        responseText = responseText.replace(jsonMatch[0], '').trim();
+        
+        // If there's no text left (agent only returned JSON), ask for a conversational response
+        if (!responseText || responseText.length < 20) {
+          const dataMessage = `Action completed successfully. Result:\n\n${JSON.stringify(data, null, 2)}\n\nProvide a brief, conversational response to the user about what was created/done. Do NOT include any JSON.`;
+          result = await chat.sendMessage(dataMessage);
+          responseText = result.response.text();
+        } else {
+          // Agent provided text along with JSON, just use the text part
+          responseText = responseText.trim();
+        }
       } catch (error) {
         console.error('Action execution error:', error);
+        return "I tried to create the segment but encountered an error. Please try again.";
       }
     }
 
