@@ -92,14 +92,14 @@ async function seedCustomers(ctx: any, userId: any, count: number) {
     const createdAt = faker.date.past({ years: 2 });
     const firstOrderDate = hasOrdered 
       ? faker.date.between({ from: createdAt, to: new Date() })
-      : null;
-    const lastOrderDate = hasOrdered
-      ? faker.date.between({ from: firstOrderDate!, to: new Date() })
-      : null;
+      : undefined;
+    const lastOrderDate = hasOrdered && firstOrderDate
+      ? faker.date.between({ from: firstOrderDate, to: new Date() })
+      : undefined;
     
     const daysSinceLastOrder = lastOrderDate
       ? Math.floor((Date.now() - lastOrderDate.getTime()) / (1000 * 60 * 60 * 24))
-      : null;
+      : undefined;
     
     // RFM SCORES
     const recencyScore = calculateRecencyScore(daysSinceLastOrder);
@@ -353,7 +353,7 @@ async function seedCampaigns(ctx: any, userId: any, segmentIds: any[]) {
   for (const campaign of campaigns) {
     const sentAt = campaign.status === "sent" 
       ? faker.date.recent({ days: 30 })
-      : null;
+      : undefined;
     
     // Generate fake performance metrics
     const sentCount = campaign.status === "sent" 
@@ -634,7 +634,7 @@ async function seedAnalyticsSnapshots(ctx: any, userId: any) {
 
 // ============ HELPER FUNCTIONS ============
 
-function calculateRecencyScore(days: number | null): number {
+function calculateRecencyScore(days: number | undefined): number {
   if (!days) return 1;
   if (days < 30) return 5;
   if (days < 60) return 4;
@@ -668,7 +668,7 @@ function getRfmSegment(r: number, f: number, m: number): string {
   return "Lost";
 }
 
-function getChurnRisk(days: number | null, orders: number): string {
+function getChurnRisk(days: number | undefined, orders: number): string {
   if (!days) return "Low";
   if (days > 90 && orders > 5) return "High";
   if (days > 45 && orders > 2) return "Medium";
