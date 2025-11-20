@@ -295,7 +295,7 @@ async function seedSegments(ctx: any, userId: any) {
       name: "High-Value Texas",
       description: "Texas customers with high lifetime value",
       conditions: [
-        { field: "stateCode", operator: "=", value: "TX" },
+        { field: "state", operator: "=", value: "TX" },
         { field: "totalSpent", operator: ">", value: 500 }
       ]
     },

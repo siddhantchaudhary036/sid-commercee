@@ -406,8 +406,7 @@ function ConditionRow({ condition, isFirst, onChange, onRemove }) {
       { value: "lastName", label: "Last Name", type: "string" },
     ],
     Location: [
-      { value: "state", label: "State", type: "string" },
-      { value: "stateCode", label: "State Code", type: "string" },
+      { value: "state", label: "State Code", type: "string" },
       { value: "city", label: "City", type: "string" },
       { value: "zipCode", label: "Zip Code", type: "string" },
     ],

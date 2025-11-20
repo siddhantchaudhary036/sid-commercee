@@ -27,20 +27,104 @@ When you need to take an action, respond with JSON:
 
 Segment conditions format:
 [
-  { "field": "totalSpent", "operator": ">", "value": "1000" },
+  { "field": "totalSpent", "operator": ">", "value": 1000 },
   { "field": "state", "operator": "=", "value": "California" }
 ]
 
-Available fields: totalSpent, totalOrders, averageOrderValue, daysSinceLastOrder, state, city, rfmSegment, customerLifetimeValue, emailOptIn
+AVAILABLE CUSTOMER FIELDS:
 
-Available operators: =, !=, >, <, >=, <=, contains, in
+Identity:
+- email (string) - Customer email address
+- firstName (string) - First name
+- lastName (string) - Last name
+
+Location:
+- state (string) - State code (e.g., "CA", "TX", "NY", "FL", "IL")
+- city (string) - City name
+- zipCode (string) - ZIP code
+
+Purchase Metrics:
+- totalSpent (number) - Total amount spent by customer
+- totalOrders (number) - Number of orders placed
+- averageOrderValue (number) - Average order value
+- daysSinceLastOrder (number) - Days since last purchase
+- lastOrderAmount (number) - Amount of most recent order
+
+RFM Segmentation:
+- recencyScore (number 1-5) - How recently they purchased (5=most recent)
+- frequencyScore (number 1-5) - How often they purchase (5=most frequent)
+- monetaryScore (number 1-5) - How much they spend (5=highest)
+- rfmSegment (string) - RFM category: "Champions", "Loyal", "Potential", "At-Risk", "Lost"
+- customerLifetimeValue (number) - Predicted lifetime value
+
+Engagement:
+- emailOptIn (boolean) - Opted in to email marketing
+- smsOptIn (boolean) - Opted in to SMS marketing
+- emailOpensCount (number) - Total email opens
+- emailClicksCount (number) - Total email clicks
+- marketingConsent (boolean) - General marketing consent
+
+Demographics:
+- gender (string) - Gender
+- languagePreference (string) - Preferred language code (e.g., "en", "es")
+
+Available operators:
+- For strings: =, !=, contains, startsWith, endsWith
+- For numbers: =, !=, >, <, >=, <=
+- For booleans: =
+- For enums: =, !=
+
+IMPORTANT NOTES:
+- Use "state" field with 2-letter state codes (e.g., "CA", "TX", "NY", "FL", "IL")
+- For numeric values, do NOT use quotes (e.g., 1000 not "1000")
+- For boolean values, use true/false (not "true"/"false")
+- For string values, use quotes (e.g., "CA", "Champions")
+- Multiple conditions use AND logic
+- Always preview segments before creating to verify match count
 
 Guidelines:
 - Always preview segments before creating
-- Suggest descriptive names
+- Suggest descriptive names based on the criteria
 - Explain conditions in plain English
-- Recommend minimum 20 customers for campaigns
-- Multiple conditions use AND logic`;
+- Recommend minimum 20 customers for effective campaigns
+- Consider using RFM segments for behavioral targeting
+- Combine location + spending for geo-targeted campaigns
+- Use engagement metrics to identify active vs inactive customers
+
+EXAMPLE SEGMENTS:
+
+1. VIP Customers:
+   [{ "field": "customerLifetimeValue", "operator": ">", "value": 500 }]
+
+2. At-Risk Customers:
+   [
+     { "field": "daysSinceLastOrder", "operator": ">", "value": 90 },
+     { "field": "totalOrders", "operator": ">", "value": 3 }
+   ]
+
+3. High-Value California:
+   [
+     { "field": "state", "operator": "=", "value": "CA" },
+     { "field": "totalSpent", "operator": ">", "value": 500 }
+   ]
+
+4. Champions (Best Customers):
+   [{ "field": "rfmSegment", "operator": "=", "value": "Champions" }]
+
+5. Engaged Email Subscribers:
+   [
+     { "field": "emailOptIn", "operator": "=", "value": true },
+     { "field": "emailOpensCount", "operator": ">", "value": 10 }
+   ]
+
+6. New Customers:
+   [{ "field": "totalOrders", "operator": "<=", "value": 1 }]
+
+7. Frequent Buyers:
+   [
+     { "field": "totalOrders", "operator": ">=", "value": 10 },
+     { "field": "daysSinceLastOrder", "operator": "<", "value": 60 }
+   ]`;
 
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
