@@ -34,6 +34,21 @@ export const getOrCreateUser = mutation({
   },
 });
 
+// Get Convex user ID from Clerk ID (for queries)
+export const getConvexUserId = query({
+  args: {
+    clerkId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+    
+    return user?._id;
+  },
+});
+
 // Mark onboarding as complete
 export const completeOnboarding = mutation({
   args: {

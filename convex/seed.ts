@@ -13,35 +13,39 @@ export const seedDatabase = mutation({
     
     console.log(`🌱 Starting seed for user ${userId}...`);
     
-    // 1. Generate Customers
+    // 1. Generate Products
+    console.log(`📦 Generating products...`);
+    const productIds = await seedProducts(ctx, userId);
+    
+    // 2. Generate Customers
     console.log(`📊 Generating ${customerCount} customers...`);
     const customerIds = await seedCustomers(ctx, userId, customerCount);
     
-    // 2. Generate Segments
+    // 3. Generate Segments
     console.log(`🎯 Generating segments...`);
     const segmentIds = await seedSegments(ctx, userId);
     
-    // 3. Generate Email Templates
+    // 4. Generate Email Templates
     console.log(`📧 Generating email templates...`);
     const templateIds = await seedEmailTemplates(ctx, userId);
     
-    // 4. Generate Campaigns with Performance
+    // 5. Generate Campaigns with Performance
     console.log(`📢 Generating campaigns...`);
     const campaignIds = await seedCampaigns(ctx, userId, segmentIds);
     
-    // 5. Generate Campaign Performance History
+    // 6. Generate Campaign Performance History
     console.log(`📈 Generating campaign performance history...`);
     await seedCampaignPerformanceHistory(ctx, userId, campaignIds, segmentIds);
     
-    // 6. Generate Flows with Performance
+    // 7. Generate Flows with Performance
     console.log(`🔄 Generating flows...`);
     const flowIds = await seedFlows(ctx, userId, segmentIds);
     
-    // 7. Generate Flow Performance History
+    // 8. Generate Flow Performance History
     console.log(`📊 Generating flow performance history...`);
     await seedFlowPerformanceHistory(ctx, userId, flowIds);
     
-    // 8. Generate Analytics Snapshots
+    // 9. Generate Analytics Snapshots
     console.log(`📸 Generating analytics snapshots...`);
     await seedAnalyticsSnapshots(ctx, userId);
     
@@ -49,6 +53,7 @@ export const seedDatabase = mutation({
     
     return {
       success: true,
+      productsCreated: productIds.length,
       customersCreated: customerIds.length,
       segmentsCreated: segmentIds.length,
       campaignsCreated: campaignIds.length,
@@ -57,7 +62,68 @@ export const seedDatabase = mutation({
   }
 });
 
-// ============ 1. CUSTOMERS ============
+// ============ 1. PRODUCTS ============
+async function seedProducts(ctx: any, userId: any) {
+  const productIds = [];
+  
+  const products = [
+    {
+      name: "Premium Wireless Headphones",
+      description: "High-quality noise-canceling wireless headphones with 30-hour battery life",
+      category: "Electronics",
+      price: 299.99,
+      compareAtPrice: 399.99,
+      cost: 120.00,
+      tags: ["audio", "wireless", "premium"],
+    },
+    {
+      name: "Organic Cotton T-Shirt",
+      description: "Soft, breathable organic cotton t-shirt in multiple colors",
+      category: "Clothing",
+      price: 29.99,
+      compareAtPrice: 39.99,
+      cost: 8.50,
+      tags: ["clothing", "organic", "casual"],
+    },
+    {
+      name: "Smart Home Security Camera",
+      description: "1080p HD security camera with night vision and motion detection",
+      category: "Home & Garden",
+      price: 149.99,
+      compareAtPrice: 199.99,
+      cost: 60.00,
+      tags: ["smart-home", "security", "electronics"],
+    },
+  ];
+  
+  for (const product of products) {
+    const totalSales = faker.number.int({ min: 50, max: 500 });
+    const totalRevenue = Math.round(totalSales * product.price * 100) / 100;
+    
+    const productId = await ctx.db.insert("products", {
+      ...product,
+      sku: `SKU-${faker.string.alphanumeric(8).toUpperCase()}`,
+      stockQuantity: faker.number.int({ min: 10, max: 500 }),
+      lowStockThreshold: 20,
+      totalSales,
+      totalRevenue,
+      averageRating: faker.number.float({ min: 3.5, max: 5.0, fractionDigits: 1 }),
+      reviewCount: faker.number.int({ min: 10, max: 200 }),
+      status: "active",
+      featured: faker.datatype.boolean({ probability: 0.3 }),
+      userId,
+      createdAt: faker.date.past({ years: 1 }).toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    
+    productIds.push(productId);
+  }
+  
+  console.log(`   ✓ Created ${productIds.length} products`);
+  return productIds;
+}
+
+// ============ 2. CUSTOMERS ============
 async function seedCustomers(ctx: any, userId: any, count: number) {
   const customerIds = [];
   
@@ -193,11 +259,6 @@ async function seedCustomers(ctx: any, userId: any, count: number) {
       engagementScore,
       churnRisk,
       
-      // Product preferences
-      favoriteCategory: faker.helpers.arrayElement([
-        "Electronics", "Clothing", "Home & Garden", "Beauty", "Sports", "Books"
-      ]),
-      
       // Tags
       tags: faker.helpers.arrayElements(
         ["VIP", "Newsletter", "Early Adopter", "Seasonal Buyer", "Discount Hunter", "Brand Loyal"],
@@ -220,7 +281,7 @@ async function seedCustomers(ctx: any, userId: any, count: number) {
   return customerIds;
 }
 
-// ============ 2. SEGMENTS ============
+// ============ 3. SEGMENTS ============
 async function seedSegments(ctx: any, userId: any) {
   const segments = [
     {
@@ -279,7 +340,7 @@ async function seedSegments(ctx: any, userId: any) {
   return segmentIds;
 }
 
-// ============ 3. EMAIL TEMPLATES ============
+// ============ 4. EMAIL TEMPLATES ============
 async function seedEmailTemplates(ctx: any, userId: any) {
   const templates = [
     {
@@ -319,7 +380,7 @@ async function seedEmailTemplates(ctx: any, userId: any) {
   return templateIds;
 }
 
-// ============ 4. CAMPAIGNS ============
+// ============ 5. CAMPAIGNS ============
 async function seedCampaigns(ctx: any, userId: any, segmentIds: any[]) {
   const campaigns = [
     {
@@ -407,7 +468,7 @@ async function seedCampaigns(ctx: any, userId: any, segmentIds: any[]) {
   return campaignIds;
 }
 
-// ============ 5. CAMPAIGN PERFORMANCE HISTORY ============
+// ============ 6. CAMPAIGN PERFORMANCE HISTORY ============
 async function seedCampaignPerformanceHistory(ctx: any, userId: any, campaignIds: any[], segmentIds: any[]) {
   const subjects = [
     "Ready for 20% off?",
@@ -458,7 +519,7 @@ async function seedCampaignPerformanceHistory(ctx: any, userId: any, campaignIds
   }
 }
 
-// ============ 6. FLOWS ============
+// ============ 7. FLOWS ============
 async function seedFlows(ctx: any, userId: any, segmentIds: any[]) {
   const flows = [
     {
@@ -567,7 +628,7 @@ async function seedFlows(ctx: any, userId: any, segmentIds: any[]) {
   return flowIds;
 }
 
-// ============ 7. FLOW PERFORMANCE HISTORY ============
+// ============ 8. FLOW PERFORMANCE HISTORY ============
 async function seedFlowPerformanceHistory(ctx: any, userId: any, flowIds: any[]) {
   const flowNames = ["Welcome Series", "Win-Back Flow", "VIP Nurture", "Product Education"];
   
@@ -600,7 +661,7 @@ async function seedFlowPerformanceHistory(ctx: any, userId: any, flowIds: any[])
   }
 }
 
-// ============ 8. ANALYTICS SNAPSHOTS ============
+// ============ 9. ANALYTICS SNAPSHOTS ============
 async function seedAnalyticsSnapshots(ctx: any, userId: any) {
   // Generate 30 days of daily snapshots
   for (let i = 0; i < 30; i++) {

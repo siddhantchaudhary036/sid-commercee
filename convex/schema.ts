@@ -81,7 +81,6 @@ export default defineSchema({
     churnRisk: v.optional(v.string()), // "Low", "Medium", "High"
     
     // PRODUCT PREFERENCES (Observable)
-    favoriteCategory: v.optional(v.string()),
     lastProductViewed: v.optional(v.string()),
     lastProductPurchased: v.optional(v.string()),
     abandonedCartCount: v.optional(v.number()),
@@ -90,7 +89,6 @@ export default defineSchema({
     // SUPPORT & SATISFACTION
     supportTicketsCount: v.optional(v.number()),
     lastSupportTicketDate: v.optional(v.string()),
-    customerSatisfactionScore: v.optional(v.number()),
     netPromoterScore: v.optional(v.number()),
     
     // LOYALTY
@@ -100,10 +98,8 @@ export default defineSchema({
     
     // TAGS & CUSTOM
     tags: v.array(v.string()),
-    customAttributes: v.optional(v.any()),
     
     // EMAIL VALIDATION
-    emailValid: v.optional(v.boolean()),
     suppressionStatus: v.optional(v.string()),
     
     // METADATA
@@ -119,6 +115,50 @@ export default defineSchema({
     .searchIndex("search_customers", {
       searchField: "email",
       filterFields: ["userId", "state"],
+    }),
+
+  // ============ PRODUCTS ============
+  products: defineTable({
+    // IDENTITY
+    name: v.string(),
+    description: v.optional(v.string()),
+    sku: v.string(), // Unique product identifier
+    
+    // PRICING
+    price: v.number(),
+    compareAtPrice: v.optional(v.number()), // Original price for discounts
+    cost: v.optional(v.number()), // Cost of goods
+    
+    // CATEGORIZATION
+    category: v.string(),
+    tags: v.array(v.string()),
+    
+    // INVENTORY
+    stockQuantity: v.number(),
+    lowStockThreshold: v.optional(v.number()),
+    
+    // SALES METRICS
+    totalSales: v.number(), // Total units sold
+    totalRevenue: v.number(), // Total revenue generated
+    averageRating: v.optional(v.number()), // 1-5 stars
+    reviewCount: v.optional(v.number()),
+    
+    // STATUS
+    status: v.string(), // "active", "draft", "archived"
+    featured: v.boolean(),
+    
+    // METADATA
+    userId: v.id("users"),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_category", ["category"])
+    .index("by_status", ["status"])
+    .index("by_sku", ["sku"])
+    .searchIndex("search_products", {
+      searchField: "name",
+      filterFields: ["userId", "category", "status"],
     }),
 
   // ============ SEGMENTATION ============

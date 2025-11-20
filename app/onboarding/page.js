@@ -144,6 +144,11 @@ export default function OnboardingPage() {
           
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className="text-2xl font-bold text-gray-900 mb-1">3</div>
+              <div className="text-sm text-gray-600">Products in your catalog</div>
+            </div>
+            
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
               <div className="text-2xl font-bold text-gray-900 mb-1">1,000</div>
               <div className="text-sm text-gray-600">Customers with purchase history</div>
             </div>
@@ -156,11 +161,6 @@ export default function OnboardingPage() {
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <div className="text-2xl font-bold text-gray-900 mb-1">4</div>
               <div className="text-sm text-gray-600">Sample email campaigns</div>
-            </div>
-            
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="text-2xl font-bold text-gray-900 mb-1">2</div>
-              <div className="text-sm text-gray-600">Multi-step email flows</div>
             </div>
           </div>
         </div>
