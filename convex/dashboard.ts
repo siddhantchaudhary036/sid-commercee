@@ -162,3 +162,44 @@ export const getRecentActivity = query({
     return activities.slice(0, 5);
   },
 });
+
+// Get conversation history for sidebar
+export const getConversationHistory = query({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const conversations = await ctx.db
+      .query("aiConversations")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(20);
+    
+    return conversations.map((conv) => {
+      // Get first user message as preview
+      const firstUserMessage = conv.messages.find((m) => m.role === "user");
+      const preview = firstUserMessage?.content.slice(0, 60) || "New conversation";
+      
+      return {
+        _id: conv._id,
+        preview: preview.length < firstUserMessage?.content.length ? preview + "..." : preview,
+        messageCount: conv.messages.length,
+        conversationType: conv.conversationType,
+        status: conv.status,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+      };
+    });
+  },
+});
+
+// Get full conversation by ID
+export const getConversation = query({
+  args: {
+    conversationId: v.id("aiConversations"),
+  },
+  handler: async (ctx, args) => {
+    const conversation = await ctx.db.get(args.conversationId);
+    return conversation;
+  },
+});

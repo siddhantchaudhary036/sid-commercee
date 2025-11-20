@@ -1,6 +1,13 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
+// Import agent handlers directly
+import { handleCustomerAnalystRequest } from "../agents/customer-analyst/handler";
+import { handleSegmentsRequest } from "../agents/segments/handler";
+import { handleEmailsRequest } from "../agents/emails/handler";
+import { handleCampaignsRequest } from "../agents/campaigns/handler";
+import { handleOrchestratorRequest } from "../agents/orchestrator/handler";
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 // Agent routing types
@@ -25,26 +32,26 @@ export async function POST(request: Request) {
     // Step 1: Route to appropriate agent
     const routing = await routeToAgent(message, conversationHistory);
     
-    // Step 2: Call specialist agent
-    let response;
+    // Step 2: Call specialist agent directly
+    let response: string;
     switch (routing.agent) {
       case "customer_analyst":
-        response = await handleCustomerAnalyst(message, userId, conversationHistory);
+        response = await handleCustomerAnalystRequest(message, userId, conversationHistory);
         break;
       case "segments":
-        response = await handleSegments(message, userId, conversationHistory);
+        response = await handleSegmentsRequest(message, userId, conversationHistory);
         break;
       case "campaigns":
-        response = await handleCampaigns(message, userId, conversationHistory);
+        response = await handleCampaignsRequest(message, userId, conversationHistory);
         break;
       case "flows":
-        response = await handleFlows(message, userId, conversationHistory);
+        response = "Flows agent coming soon! I'll help you build automated email sequences.\n\nFor now, you can:\n- Visit /flows to create flows manually\n- Use the visual flow editor\n\nThis will be fully automated soon.";
         break;
       case "emails":
-        response = await handleEmails(message, userId, conversationHistory);
+        response = await handleEmailsRequest(message, userId, conversationHistory);
         break;
       case "orchestrator":
-        response = await handleOrchestrator(message, userId, conversationHistory);
+        response = await handleOrchestratorRequest(message, userId);
         break;
       default:
         response = "I'm not sure how to help with that.";
@@ -100,107 +107,43 @@ function buildRoutingPrompt(
 User Request: "${message}"${historyContext}
 
 Available Agents:
-- customer_analyst: Questions about customer data, analytics, queries about customer behavior
-- segments: Creating or modifying customer segments
-- campaigns: Creating one-time email campaigns
-- flows: Building automated email sequences (multi-step)
-- emails: Writing email content only (subject lines, body copy)
-- orchestrator: Complex multi-step tasks requiring multiple agents
+- customer_analyst: ONLY for data queries and analytics questions (no actions)
+- segments: ONLY for creating/editing segments (no campaigns)
+- campaigns: ONLY for creating campaigns (no segments)
+- flows: ONLY for building automation sequences
+- emails: ONLY for writing email content
+- orchestrator: For ANY task involving MULTIPLE actions or BUSINESS GOALS
 
-Rules:
-1. customer_analyst: Use for data queries ("Show me...", "How many...", "Who are...")
-2. segments: Use for segment creation ("Create a segment...", "Build a group...")
-3. campaigns: Use for single campaign creation ("Send an email...", "Create a campaign...")
-4. flows: Use for automation sequences ("Build a flow...", "Create a welcome series...")
-5. emails: Use ONLY for writing content ("Write an email...", "Generate subject lines...")
-6. orchestrator: Use for complex tasks requiring multiple steps
+CRITICAL ROUTING RULES:
+
+Use ORCHESTRATOR when the request:
+- Mentions improving/increasing revenue, sales, or business metrics
+- Wants to target AND take action (e.g., "target X customers and send campaign")
+- Mentions creating campaigns for specific customer groups
+- Includes words like: "improve", "increase", "drive", "boost", "re-engage", "win-back"
+- Requires creating BOTH segment AND campaign
+- Is a business goal, not just a data question
+
+Use CUSTOMER_ANALYST only when:
+- Pure data query with NO action needed
+- Just wants to see/know information
+- Examples: "Show me...", "How many...", "Who are...", "What is..."
 
 Examples:
-- "Show me customers from Texas" → customer_analyst
-- "Create a segment for VIP customers" → segments
-- "Send a Black Friday campaign" → orchestrator (needs segment + campaign + email)
-- "Build a welcome flow" → flows
-- "Write a win-back email" → emails
-- "Find high-value customers and create a campaign for them" → orchestrator
+- "Show me customers from Texas" → customer_analyst (just viewing data)
+- "Create a segment for VIP customers" → segments (only creating segment)
+- "I want to improve revenue from high LTV customers" → orchestrator (business goal + action)
+- "Target inactive customers with a campaign" → orchestrator (segment + campaign)
+- "Send a Black Friday campaign to loyal customers" → orchestrator (needs segment + campaign + email)
+- "Build a welcome flow" → flows (automation only)
+- "Write a win-back email" → emails (content only)
+- "Re-engage customers who haven't purchased" → orchestrator (business goal + action)
+- "Increase sales from VIP customers" → orchestrator (business goal)
+- "How many VIP customers do I have?" → customer_analyst (just data)
 
 Respond with JSON only:
 {
   "agent": "customer_analyst" | "segments" | "campaigns" | "flows" | "emails" | "orchestrator",
   "reasoning": "Brief explanation of why you chose this agent"
 }`;
-}
-
-// Specialist agent handlers - Call dedicated agent endpoints
-async function handleCustomerAnalyst(
-  message: string,
-  userId: string,
-  conversationHistory?: Array<{ role: string; content: string }>
-): Promise<string> {
-  return await callAgentEndpoint('/api/agents/customer-analyst', message, userId, conversationHistory);
-}
-
-async function handleSegments(
-  message: string,
-  userId: string,
-  conversationHistory?: Array<{ role: string; content: string }>
-): Promise<string> {
-  return await callAgentEndpoint('/api/agents/segments', message, userId, conversationHistory);
-}
-
-async function handleCampaigns(
-  message: string,
-  userId: string,
-  conversationHistory?: Array<{ role: string; content: string }>
-): Promise<string> {
-  return await callAgentEndpoint('/api/agents/campaigns', message, userId, conversationHistory);
-}
-
-async function handleFlows(
-  message: string,
-  userId: string,
-  conversationHistory?: Array<{ role: string; content: string }>
-): Promise<string> {
-  return await callAgentEndpoint('/api/agents/flows', message, userId, conversationHistory);
-}
-
-async function handleEmails(
-  message: string,
-  userId: string,
-  conversationHistory?: Array<{ role: string; content: string }>
-): Promise<string> {
-  return await callAgentEndpoint('/api/agents/emails', message, userId, conversationHistory);
-}
-
-async function handleOrchestrator(
-  message: string,
-  userId: string,
-  conversationHistory?: Array<{ role: string; content: string }>
-): Promise<string> {
-  return await callAgentEndpoint('/api/agents/orchestrator', message, userId, conversationHistory);
-}
-
-// Helper function to call agent endpoints
-async function callAgentEndpoint(
-  endpoint: string,
-  message: string,
-  userId: string,
-  conversationHistory?: Array<{ role: string; content: string }>
-): Promise<string> {
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, userId, conversationHistory })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Agent endpoint failed: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.response;
-  } catch (error) {
-    console.error(`Error calling ${endpoint}:`, error);
-    return `I encountered an error processing your request. Please try again.`;
-  }
 }

@@ -265,7 +265,7 @@ export function CreateSegmentModal({ userId, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden flex">
         {/* Left: Builder */}
         <div className="flex-1 p-6 overflow-y-auto">
@@ -549,6 +549,19 @@ function ConditionRow({ condition, isFirst, onChange, onRemove }) {
 
 // Value Input Component
 function ValueInput({ fieldMeta, value, onChange }) {
+  // Safety check: if fieldMeta is undefined, return a fallback input
+  if (!fieldMeta) {
+    return (
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Enter value..."
+        className="px-3 py-2 border border-gray-300 rounded-lg flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+      />
+    );
+  }
+
   switch (fieldMeta.type) {
     case "string":
       return (
@@ -803,7 +816,7 @@ function EditSegmentModal({ segment, userId, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden flex">
         <div className="flex-1 p-6 overflow-y-auto">
           <div className="flex items-center justify-between mb-6">
@@ -914,7 +927,7 @@ function DeleteSegmentModal({ segment, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full">
         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <AlertTriangle className="w-5 h-5 text-red-600" />
