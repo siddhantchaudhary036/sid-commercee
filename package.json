@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.35.2",
+    "@faker-js/faker": "^10.1.0",
     "convex": "^1.29.3",
     "next": "16.0.3",
     "react": "19.2.0",

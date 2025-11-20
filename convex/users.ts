@@ -1,104 +1,62 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-export const createUser = mutation({
-    args: {
-        clerkId: v.string(),
-        email: v.string(),
-        firstName: v.optional(v.string()),
-        lastName: v.optional(v.string()),
-        imageUrl: v.optional(v.string()),
-        username: v.optional(v.string()),
-    },
-    handler: async (ctx, args) => {
-        const existingUser = await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-            .unique();
-
-        if (existingUser) {
-            return existingUser._id;
-        }
-
-        const userId = await ctx.db.insert("users", {
-            clerkId: args.clerkId,
-            email: args.email,
-            firstName: args.firstName,
-            lastName: args.lastName,
-            imageUrl: args.imageUrl,
-            username: args.username,
-        });
-
-        return userId;
-    },
+// Get or create user from Clerk ID
+export const getOrCreateUser = mutation({
+  args: {
+    clerkId: v.string(),
+    email: v.string(),
+    name: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Check if user exists
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+    
+    if (existingUser) {
+      return existingUser._id;
+    }
+    
+    // Create new user
+    const userId = await ctx.db.insert("users", {
+      clerkId: args.clerkId,
+      email: args.email,
+      name: args.name,
+      onboardingCompleted: false,
+      dataGenerated: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    
+    return userId;
+  },
 });
 
-export const updateUser = mutation({
-    args: {
-        clerkId: v.string(),
-        email: v.optional(v.string()),
-        firstName: v.optional(v.string()),
-        lastName: v.optional(v.string()),
-        imageUrl: v.optional(v.string()),
-        username: v.optional(v.string()),
-    },
-    handler: async (ctx, args) => {
-        const user = await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-            .unique();
-
-        if (!user) {
-            throw new Error("User not found");
-        }
-
-        await ctx.db.patch(user._id, {
-            email: args.email ?? user.email,
-            firstName: args.firstName ?? user.firstName,
-            lastName: args.lastName ?? user.lastName,
-            imageUrl: args.imageUrl ?? user.imageUrl,
-            username: args.username ?? user.username,
-        });
-
-        return user._id;
-    },
+// Mark onboarding as complete
+export const completeOnboarding = mutation({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, {
+      onboardingCompleted: true,
+      dataGenerated: true,
+      updatedAt: new Date().toISOString(),
+    });
+  },
 });
 
-export const deleteUser = mutation({
-    args: { clerkId: v.string() },
-    handler: async (ctx, args) => {
-        const user = await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-            .unique();
-
-        if (user) {
-            await ctx.db.delete(user._id);
-        }
-    },
-});
-
+// Get user by Clerk ID
 export const getUserByClerkId = query({
-    args: { clerkId: v.string() },
-    handler: async (ctx, args) => {
-        return await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-            .unique();
-    },
-});
-
-export const getCurrentUser = query({
-    args: {},
-    handler: async (ctx) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) {
-            return null;
-        }
-
-        return await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-            .unique();
-    },
+  args: {
+    clerkId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+  },
 });
