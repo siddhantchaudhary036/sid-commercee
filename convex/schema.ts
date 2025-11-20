@@ -164,8 +164,13 @@ export default defineSchema({
   // ============ CAMPAIGNS ============
   campaigns: defineTable({
     name: v.string(),
-    subject: v.string(),
-    content: v.string(), // Email body HTML/text
+    
+    // EMAIL CONTENT (Snapshot from template)
+    emailTemplateId: v.optional(v.id("emailTemplates")), // Reference to original template
+    subject: v.string(), // Copied from template (can be customized)
+    content: v.string(), // Copied from template (snapshot at creation)
+    
+    description: v.optional(v.string()), // Internal notes
     
     // TARGETING
     segmentId: v.optional(v.id("segments")), // Who receives this

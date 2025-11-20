@@ -260,7 +260,7 @@ export const getAnalytics = query({
       });
 
     // Calculate time to complete (average days)
-    const avgTimeToComplete = flow.averageTimeToComplete || 0;
+    const avgTimeToComplete = 0; // TODO: Calculate from flow execution data
 
     // Revenue metrics
     const revenuePerRecipient =

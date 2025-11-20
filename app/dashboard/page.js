@@ -4,12 +4,14 @@ import { useUser } from '@clerk/nextjs';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useState } from 'react';
-import { Sparkles, TrendingUp, Users, Mail, Workflow, Settings, Info, X } from 'lucide-react';
+import { Sparkles, Users, Mail, Workflow, Settings, Info, X } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user } = useUser();
   const [message, setMessage] = useState('');
   const [showInsightInfo, setShowInsightInfo] = useState(null);
+  const [conversationHistory, setConversationHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   
   const convexUserId = useQuery(
     api.users.getConvexUserId,
@@ -26,26 +28,70 @@ export default function DashboardPage() {
     convexUserId ? { userId: convexUserId } : "skip"
   );
   
-  const activities = useQuery(
-    api.dashboard.getRecentActivity,
-    convexUserId ? { userId: convexUserId } : "skip"
-  );
-  
   const handlePromptClick = (prompt) => {
     setMessage(prompt);
   };
   
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+  const handleSendMessage = async () => {
+    if (!message.trim() || !convexUserId || isLoading) return;
     
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
+    const userMessage = message.trim();
+    setMessage('');
+    setIsLoading(true);
+    
+    // Add user message to history
+    const newHistory = [
+      ...conversationHistory,
+      { role: 'user', content: userMessage }
+    ];
+    setConversationHistory(newHistory);
+    
+    try {
+      const response = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMessage,
+          userId: convexUserId,
+          conversationHistory: conversationHistory.slice(-6) // Last 3 exchanges
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get response');
+      }
+      
+      const data = await response.json();
+      
+      // Add agent response to history
+      setConversationHistory([
+        ...newHistory,
+        { 
+          role: 'assistant', 
+          content: data.response,
+          agent: data.agent,
+          reasoning: data.reasoning
+        }
+      ]);
+    } catch (error) {
+      console.error('Error:', error);
+      setConversationHistory([
+        ...newHistory,
+        { 
+          role: 'assistant', 
+          content: 'Sorry, I encountered an error. Please try again.'
+        }
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
   
   return (
@@ -76,7 +122,7 @@ export default function DashboardPage() {
                 href="/dashboard"
                 className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-900 bg-gray-50 rounded-lg"
               >
-                <TrendingUp className="w-4 h-4" />
+                <Workflow className="w-4 h-4" />
                 Dashboard
               </a>
               
@@ -143,94 +189,100 @@ export default function DashboardPage() {
         <div className="flex-1 flex flex-col">
           <div className="flex-1 overflow-y-auto p-12">
             <div className="max-w-2xl mx-auto">
-              <div className="mb-16">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                  What would you like to do today?
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Ask me anything about your customers, campaigns, or performance
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => handlePromptClick("Show me customers at high churn risk")}
-                  className="border border-gray-200 rounded-lg p-6 text-left hover:border-gray-300 transition-colors"
-                >
-                  <Users className="w-5 h-5 text-gray-400 mb-4" />
-                  <div className="text-sm font-medium text-gray-900 mb-2">
-                    Analyze Customers
+              {conversationHistory.length === 0 ? (
+                <>
+                  <div className="mb-16">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                      What would you like to do today?
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Ask me anything about your customers, campaigns, or performance
+                    </p>
                   </div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
-                    Show me customers at high churn risk
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => handlePromptClick("Show me customers at high churn risk")}
+                      className="border border-gray-200 rounded-lg p-6 text-left hover:border-gray-300 transition-colors"
+                    >
+                      <Users className="w-5 h-5 text-gray-400 mb-4" />
+                      <div className="text-sm font-medium text-gray-900 mb-2">
+                        Analyze Customers
+                      </div>
+                      <div className="text-xs text-gray-500 leading-relaxed">
+                        Show me customers at high churn risk
+                      </div>
+                    </button>
+                    
+                    <button
+                      onClick={() => handlePromptClick("Create a segment for VIP customers")}
+                      className="border border-gray-200 rounded-lg p-6 text-left hover:border-gray-300 transition-colors"
+                    >
+                      <Users className="w-5 h-5 text-gray-400 mb-4" />
+                      <div className="text-sm font-medium text-gray-900 mb-2">
+                        Create Segment
+                      </div>
+                      <div className="text-xs text-gray-500 leading-relaxed">
+                        Create a segment for VIP customers
+                      </div>
+                    </button>
+                    
+                    <button
+                      onClick={() => handlePromptClick("Create a win-back campaign")}
+                      className="border border-gray-200 rounded-lg p-6 text-left hover:border-gray-300 transition-colors"
+                    >
+                      <Mail className="w-5 h-5 text-gray-400 mb-4" />
+                      <div className="text-sm font-medium text-gray-900 mb-2">
+                        Design Campaign
+                      </div>
+                      <div className="text-xs text-gray-500 leading-relaxed">
+                        Create a win-back campaign
+                      </div>
+                    </button>
+                    
+                    <button
+                      onClick={() => handlePromptClick("Build a 3-email welcome series")}
+                      className="border border-gray-200 rounded-lg p-6 text-left hover:border-gray-300 transition-colors"
+                    >
+                      <Workflow className="w-5 h-5 text-gray-400 mb-4" />
+                      <div className="text-sm font-medium text-gray-900 mb-2">
+                        Build Flow
+                      </div>
+                      <div className="text-xs text-gray-500 leading-relaxed">
+                        Build a 3-email welcome series
+                      </div>
+                    </button>
                   </div>
-                </button>
-                
-                <button
-                  onClick={() => handlePromptClick("Create a segment for VIP customers")}
-                  className="border border-gray-200 rounded-lg p-6 text-left hover:border-gray-300 transition-colors"
-                >
-                  <TrendingUp className="w-5 h-5 text-gray-400 mb-4" />
-                  <div className="text-sm font-medium text-gray-900 mb-2">
-                    Create Segment
-                  </div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
-                    Create a segment for VIP customers
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => handlePromptClick("Create a win-back campaign")}
-                  className="border border-gray-200 rounded-lg p-6 text-left hover:border-gray-300 transition-colors"
-                >
-                  <Mail className="w-5 h-5 text-gray-400 mb-4" />
-                  <div className="text-sm font-medium text-gray-900 mb-2">
-                    Design Campaign
-                  </div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
-                    Create a win-back campaign
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => handlePromptClick("Build a 3-email welcome series")}
-                  className="border border-gray-200 rounded-lg p-6 text-left hover:border-gray-300 transition-colors"
-                >
-                  <Workflow className="w-5 h-5 text-gray-400 mb-4" />
-                  <div className="text-sm font-medium text-gray-900 mb-2">
-                    Build Flow
-                  </div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
-                    Build a 3-email welcome series
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => handlePromptClick("What's working best right now?")}
-                  className="border border-gray-200 rounded-lg p-6 text-left hover:border-gray-300 transition-colors"
-                >
-                  <Sparkles className="w-5 h-5 text-gray-400 mb-4" />
-                  <div className="text-sm font-medium text-gray-900 mb-2">
-                    Get Insights
-                  </div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
-                    What's working best right now?
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => handlePromptClick("How many customers in California?")}
-                  className="border border-gray-200 rounded-lg p-6 text-left hover:border-gray-300 transition-colors"
-                >
-                  <TrendingUp className="w-5 h-5 text-gray-400 mb-4" />
-                  <div className="text-sm font-medium text-gray-900 mb-2">
-                    Ask Questions
-                  </div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
-                    How many customers in California?
-                  </div>
-                </button>
-              </div>
+                </>
+              ) : (
+                <div className="space-y-6">
+                  {conversationHistory.map((msg, idx) => (
+                    <div key={idx} className={msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+                      <div className={`max-w-[80%] ${msg.role === 'user' ? 'bg-black text-white' : 'bg-gray-100 text-gray-900'} rounded-lg p-4`}>
+                        {msg.role === 'assistant' && msg.agent && (
+                          <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
+                            <Sparkles className="w-3 h-3" />
+                            <span>{msg.agent.replace('_', ' ')}</span>
+                          </div>
+                        )}
+                        <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                          {msg.content}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {isLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-gray-100 rounded-lg p-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <Sparkles className="w-4 h-4 animate-pulse" />
+                          <span>Thinking...</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           
@@ -241,13 +293,27 @@ export default function DashboardPage() {
                   type="text"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
                   placeholder="Ask anything..."
-                  className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                  disabled={isLoading}
+                  className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                 />
-                <button className="px-5 py-2 text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium">
-                  Send
+                <button 
+                  onClick={handleSendMessage}
+                  disabled={isLoading || !message.trim()}
+                  className="px-5 py-2 text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Sending...' : 'Send'}
                 </button>
               </div>
+              {conversationHistory.length > 0 && (
+                <button
+                  onClick={() => setConversationHistory([])}
+                  className="mt-3 text-xs text-gray-500 hover:text-gray-700"
+                >
+                  Clear conversation
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -350,39 +416,17 @@ export default function DashboardPage() {
                   No insights yet
                 </div>
               )}
+              
+              <a
+                href="/insights"
+                className="block w-full px-4 py-2 text-xs text-center border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                Discover more insights
+              </a>
             </div>
           </div>
           
-          <div className="p-8">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-6">
-              Recent Activity
-            </h3>
-            
-            <div className="space-y-5">
-              {activities && activities.length > 0 ? (
-                activities.map((activity, idx) => (
-                  <div key={idx} className="flex items-start gap-3">
-                    <div className="w-1 h-1 bg-gray-400 rounded-full mt-2 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-gray-900">
-                        {activity.title}
-                      </div>
-                      <div className="text-xs text-gray-500 truncate mt-1">
-                        {activity.description}
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        {formatTimestamp(activity.timestamp)}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-xs text-gray-400">
-                  No recent activity
-                </div>
-              )}
-            </div>
-          </div>
+
         </div>
       </div>
     </div>

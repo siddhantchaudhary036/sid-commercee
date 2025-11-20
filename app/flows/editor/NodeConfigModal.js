@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useReactFlow } from "@xyflow/react";
-import { X } from "lucide-react";
+import { X, Eye } from "lucide-react";
+import { EmailTemplateSelector } from "@/app/components/EmailTemplateSelector";
 
 export default function NodeConfigModal({ nodeId, nodeType, nodeData, onClose }) {
   const { setNodes } = useReactFlow();
@@ -119,74 +120,138 @@ export default function NodeConfigModal({ nodeId, nodeType, nodeData, onClose })
     </div>
   );
 
+  // Get selected template for email node
+  const selectedTemplate = useQuery(
+    api.emailTemplates.getById,
+    nodeType === "email" && config.emailTemplateId 
+      ? { id: config.emailTemplateId } 
+      : "skip"
+  );
+
+  // Auto-copy template content when template is selected
+  useEffect(() => {
+    if (selectedTemplate && nodeType === "email") {
+      setConfig((prev) => ({
+        ...prev,
+        templateName: selectedTemplate.name,
+        templateSubject: selectedTemplate.subject,
+        // Store snapshot for reference (actual sending will fetch fresh)
+        subject: prev.customSubject || selectedTemplate.subject,
+        content: selectedTemplate.content,
+      }));
+    }
+  }, [selectedTemplate, nodeType]);
+
   const renderEmailConfig = () => (
     <div className="space-y-4">
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-2">
-          Email Subject *
+          Node Name
         </label>
         <input
           type="text"
-          value={config.subject || ""}
-          onChange={(e) => setConfig({ ...config, subject: e.target.value })}
-          placeholder="e.g., Welcome to our store!"
+          value={config.nodeName || config.label || ""}
+          onChange={(e) => setConfig({ ...config, nodeName: e.target.value, label: e.target.value })}
+          placeholder="e.g., Welcome Email"
           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
         />
       </div>
 
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-2">
-          Email Content *
+          Email Template <span className="text-gray-400">*</span>
         </label>
-        <textarea
-          value={config.content || ""}
-          onChange={(e) => setConfig({ ...config, content: e.target.value })}
-          placeholder="Hi {{firstName}},&#10;&#10;Welcome to our store!&#10;&#10;Best regards,&#10;The Team"
-          rows={8}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 font-mono"
-        />
-      </div>
-
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-        <div className="text-xs font-medium text-gray-700 mb-2">
-          Available Variables:
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            "{{firstName}}",
-            "{{lastName}}",
-            "{{email}}",
-            "{{totalSpent}}",
-            "{{totalOrders}}",
-          ].map((variable) => (
-            <button
-              key={variable}
-              onClick={() =>
-                setConfig({
-                  ...config,
-                  content: (config.content || "") + " " + variable,
-                })
-              }
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 font-mono"
-            >
-              {variable}
-            </button>
-          ))}
+        {config.userId ? (
+          <EmailTemplateSelector
+            selectedId={config.emailTemplateId}
+            onSelect={(templateId) => {
+              setConfig({ ...config, emailTemplateId: templateId });
+            }}
+            userId={config.userId}
+            allowCreate={true}
+          />
+        ) : (
+          <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded border border-gray-200">
+            Save the flow first to select a template
+          </div>
+        )}
+        <div className="text-xs text-gray-500 mt-1">
+          Choose an email template from your library
         </div>
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-gray-700 mb-2">
-          Send From
-        </label>
-        <input
-          type="email"
-          value={config.fromEmail || ""}
-          onChange={(e) => setConfig({ ...config, fromEmail: e.target.value })}
-          placeholder="your@email.com"
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
-        />
-      </div>
+      {config.emailTemplateId && selectedTemplate && (
+        <>
+          <div className="border-t border-gray-200 pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-medium text-gray-700">
+                Template Preview
+              </label>
+              <button
+                onClick={() => {
+                  window.open(`/emails/editor?id=${config.emailTemplateId}`, '_blank');
+                }}
+                className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1"
+              >
+                <Eye className="w-3 h-3" />
+                Edit Template
+              </button>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div className="text-xs font-medium text-gray-900 mb-1">
+                {selectedTemplate.name}
+              </div>
+              <div className="text-xs text-gray-600 mb-2">
+                Subject: {selectedTemplate.subject}
+              </div>
+              <div className="text-xs text-gray-500">
+                Category: {selectedTemplate.category}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-2">
+              Custom Subject <span className="text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={config.customSubject || ""}
+              onChange={(e) => setConfig({ ...config, customSubject: e.target.value })}
+              placeholder={selectedTemplate.subject}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
+            <div className="text-xs text-gray-500 mt-1">
+              Leave blank to use template's subject line
+            </div>
+          </div>
+
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <div className="text-xs font-medium text-gray-700 mb-2">
+              Available Variables:
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                "{{firstName}}",
+                "{{lastName}}",
+                "{{email}}",
+                "{{totalSpent}}",
+                "{{totalOrders}}",
+              ].map((variable) => (
+                <span
+                  key={variable}
+                  className="px-2 py-1 text-xs bg-white border border-gray-300 rounded font-mono"
+                >
+                  {variable}
+                </span>
+              ))}
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              These variables will be replaced with customer data when the email is sent
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 

@@ -125,7 +125,6 @@ export default function EmailTemplatesPage() {
                 <TemplateCard
                   key={template._id}
                   template={template}
-                  userId={convexUser._id}
                 />
               ))}
             </div>
@@ -146,7 +145,6 @@ export default function EmailTemplatesPage() {
         {/* Create Template Modal */}
         {showCreateModal && (
           <CreateTemplateModal
-            userId={convexUser._id}
             onClose={() => setShowCreateModal(false)}
           />
         )}

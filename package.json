@@ -11,12 +11,14 @@
   "dependencies": {
     "@clerk/nextjs": "^6.35.2",
     "@faker-js/faker": "^10.1.0",
+    "@google/generative-ai": "^0.24.1",
     "@xyflow/react": "^12.9.3",
     "convex": "^1.29.3",
     "lucide-react": "^0.554.0",
     "next": "16.0.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-hot-toast": "^2.6.0",
     "svix": "^1.81.0"
   },
   "devDependencies": {

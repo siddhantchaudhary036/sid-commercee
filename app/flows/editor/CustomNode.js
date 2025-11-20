@@ -41,9 +41,12 @@ function CustomNode({ id, data, isConnectable }) {
     
     switch (nodeType) {
       case "trigger":
-        return data.triggerType || "Click to configure";
+        return data.segmentName || data.triggerType || "Click to configure";
       case "email":
-        return data.subject || "Click to configure email";
+        if (data.templateName) {
+          return `📧 ${data.templateName}`;
+        }
+        return data.subject || "Click to select template";
       case "delay":
         return data.duration
           ? `Wait ${data.duration} ${data.unit || "days"}`
