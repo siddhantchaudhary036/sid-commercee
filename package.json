@@ -11,6 +11,7 @@
   "dependencies": {
     "@clerk/nextjs": "^6.35.2",
     "@faker-js/faker": "^10.1.0",
+    "@xyflow/react": "^12.9.3",
     "convex": "^1.29.3",
     "lucide-react": "^0.554.0",
     "next": "16.0.3",

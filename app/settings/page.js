@@ -3,6 +3,7 @@
 import { useUser } from '@clerk/nextjs';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import Sidebar from '../components/Sidebar';
 
 export default function SettingsPage() {
   const { user } = useUser();
@@ -28,8 +29,10 @@ export default function SettingsPage() {
   };
   
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-3xl mx-auto px-6 py-12">
+    <div className="flex min-h-screen bg-white">
+      <Sidebar />
+      <div className="flex-1">
+        <div className="max-w-3xl mx-auto px-6 py-12">
         <h1 className="text-lg font-semibold text-gray-900 mb-8">Settings</h1>
         
         {/* Account Information */}
@@ -190,6 +193,7 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

@@ -10,8 +10,11 @@
 
 import type * as customers from "../customers.js";
 import type * as dashboard from "../dashboard.js";
+import type * as emailTemplates from "../emailTemplates.js";
+import type * as flows from "../flows.js";
 import type * as migrations from "../migrations.js";
 import type * as seed from "../seed.js";
+import type * as segments from "../segments.js";
 import type * as users from "../users.js";
 
 import type {
@@ -23,8 +26,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   customers: typeof customers;
   dashboard: typeof dashboard;
+  emailTemplates: typeof emailTemplates;
+  flows: typeof flows;
   migrations: typeof migrations;
   seed: typeof seed;
+  segments: typeof segments;
   users: typeof users;
 }>;
 

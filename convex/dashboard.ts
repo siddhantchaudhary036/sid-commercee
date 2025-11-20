@@ -45,13 +45,6 @@ export const getInsightsPreview = query({
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    // Get at-risk customers
-    const atRiskCustomers = await ctx.db
-      .query("customers")
-      .withIndex("by_churn_risk", (q) => q.eq("churnRisk", "High"))
-      .filter((q) => q.eq(q.field("userId"), args.userId))
-      .collect();
-    
     // Get campaign performance data for insights
     const campaignPerformance = await ctx.db
       .query("campaignPerformance")
@@ -88,17 +81,6 @@ export const getInsightsPreview = query({
         title: `${bestDay} sends perform best`,
         description: `Campaigns sent on ${bestDay} generate $${Math.round(bestAvgRevenue)} average revenue`,
         action: "Schedule next campaign",
-      });
-    }
-    
-    // Insight 2: At-risk customers
-    if (atRiskCustomers.length > 0) {
-      insights.push({
-        type: "segment_opportunity",
-        priority: "medium",
-        title: `${atRiskCustomers.length} at-risk customers detected`,
-        description: "High-value customers who haven't ordered recently",
-        action: "Create win-back campaign",
       });
     }
     

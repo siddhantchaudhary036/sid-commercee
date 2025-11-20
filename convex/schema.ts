@@ -31,19 +31,15 @@ export default defineSchema({
     
     // ADDRESS
     addressLine1: v.optional(v.string()),
-    addressLine2: v.optional(v.string()),
     city: v.optional(v.string()),
     state: v.optional(v.string()),
-    stateCode: v.optional(v.string()),
     country: v.optional(v.string()),
-    countryCode: v.optional(v.string()),
     zipCode: v.optional(v.string()),
     
     // DEMOGRAPHICS
     birthday: v.optional(v.string()),
     gender: v.optional(v.string()),
     languagePreference: v.optional(v.string()),
-    timezone: v.optional(v.string()),
     
     // MARKETING PREFERENCES
     emailOptIn: v.boolean(),
@@ -60,8 +56,6 @@ export default defineSchema({
     lastOrderDate: v.optional(v.string()),
     lastOrderAmount: v.optional(v.number()),
     daysSinceLastOrder: v.optional(v.number()),
-    totalRefunds: v.optional(v.number()),
-    refundAmount: v.optional(v.number()),
     
     // RFM SEGMENTATION (Computed scores)
     recencyScore: v.optional(v.number()), // 1-5
@@ -71,36 +65,14 @@ export default defineSchema({
     customerLifetimeValue: v.optional(v.number()),
     
     // ENGAGEMENT METRICS (Observable - from email interactions)
-    websiteVisitsCount: v.optional(v.number()),
     lastWebsiteVisit: v.optional(v.string()),
     emailOpensCount: v.optional(v.number()),
     emailClicksCount: v.optional(v.number()),
     lastEmailOpenDate: v.optional(v.string()),
     lastEmailClickDate: v.optional(v.string()),
-    engagementScore: v.optional(v.number()),
-    churnRisk: v.optional(v.string()), // "Low", "Medium", "High"
-    
-    // PRODUCT PREFERENCES (Observable)
-    lastProductViewed: v.optional(v.string()),
-    lastProductPurchased: v.optional(v.string()),
-    abandonedCartCount: v.optional(v.number()),
-    abandonedCartValue: v.optional(v.number()),
-    
-    // SUPPORT & SATISFACTION
-    supportTicketsCount: v.optional(v.number()),
-    lastSupportTicketDate: v.optional(v.string()),
-    netPromoterScore: v.optional(v.number()),
     
     // LOYALTY
-    loyaltyPointsBalance: v.optional(v.number()),
     loyaltyTier: v.optional(v.string()), // "Bronze", "Silver", "Gold", "Platinum"
-    referralCount: v.optional(v.number()),
-    
-    // TAGS & CUSTOM
-    tags: v.array(v.string()),
-    
-    // EMAIL VALIDATION
-    suppressionStatus: v.optional(v.string()),
     
     // METADATA
     userId: v.id("users"),
@@ -111,7 +83,6 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_ltv", ["customerLifetimeValue"])
     .index("by_last_order", ["lastOrderDate"])
-    .index("by_churn_risk", ["churnRisk"])
     .searchIndex("search_customers", {
       searchField: "email",
       filterFields: ["userId", "state"],

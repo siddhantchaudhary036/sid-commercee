@@ -172,7 +172,6 @@ async function seedCustomers(ctx: any, userId: any, count: number) {
     const frequencyScore = calculateFrequencyScore(totalOrders);
     const monetaryScore = calculateMonetaryScore(totalSpent);
     const rfmSegment = getRfmSegment(recencyScore, frequencyScore, monetaryScore);
-    const churnRisk = getChurnRisk(daysSinceLastOrder, totalOrders);
     
     // EMAIL ENGAGEMENT
     const engagementLevel = faker.helpers.weightedArrayElement([
@@ -193,8 +192,6 @@ async function seedCustomers(ctx: any, userId: any, count: number) {
       emailClicksCount = faker.number.int({ min: 0, max: 2 });
     }
     
-    const engagementScore = Math.min(100, (emailOpensCount * 2) + (emailClicksCount * 5));
-    
     // STATE DISTRIBUTION (realistic US)
     const state = faker.helpers.weightedArrayElement([
       { weight: 12, value: 'CA' },
@@ -212,16 +209,16 @@ async function seedCustomers(ctx: any, userId: any, count: number) {
       phone: faker.phone.number(),
       
       // Address
+      addressLine1: faker.location.streetAddress(),
       city: faker.location.city(),
       state,
-      stateCode: state,
       country: "United States",
-      countryCode: "US",
       zipCode: faker.location.zipCode(),
       
       // Demographics
       birthday: faker.date.birthdate({ min: 18, max: 80, mode: 'age' }).toISOString(),
       gender: faker.helpers.arrayElement(["Male", "Female", "Other", "Prefer not to say"]),
+      languagePreference: faker.helpers.arrayElement(["en", "es", "fr", "de"]),
       
       // Marketing preferences
       emailOptIn: faker.datatype.boolean({ probability: 0.8 }),
@@ -238,6 +235,7 @@ async function seedCustomers(ctx: any, userId: any, count: number) {
       averageOrderValue: Math.round(avgOrderValue * 100) / 100,
       firstOrderDate: firstOrderDate?.toISOString(),
       lastOrderDate: lastOrderDate?.toISOString(),
+      lastOrderAmount: hasOrdered ? Math.round(avgOrderValue * faker.number.float({ min: 0.7, max: 1.3 }) * 100) / 100 : undefined,
       daysSinceLastOrder,
       
       // RFM
@@ -248,6 +246,7 @@ async function seedCustomers(ctx: any, userId: any, count: number) {
       customerLifetimeValue: Math.round(totalSpent * 1.2 * 100) / 100,
       
       // Engagement
+      lastWebsiteVisit: faker.date.recent({ days: 30 }).toISOString(),
       emailOpensCount,
       emailClicksCount,
       lastEmailOpenDate: emailOpensCount > 0 
@@ -256,14 +255,9 @@ async function seedCustomers(ctx: any, userId: any, count: number) {
       lastEmailClickDate: emailClicksCount > 0 
         ? faker.date.recent({ days: 60 }).toISOString()
         : undefined,
-      engagementScore,
-      churnRisk,
       
-      // Tags
-      tags: faker.helpers.arrayElements(
-        ["VIP", "Newsletter", "Early Adopter", "Seasonal Buyer", "Discount Hunter", "Brand Loyal"],
-        { min: 0, max: 3 }
-      ),
+      // Loyalty
+      loyaltyTier: faker.helpers.arrayElement(["Bronze", "Silver", "Gold", "Platinum"]),
       
       // Metadata
       userId,
