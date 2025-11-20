@@ -11,8 +11,11 @@ export default function CampaignsPage() {
   const currentUser = useQuery(api.users.getCurrentUser, user ? { clerkId: user.id } : "skip");
   const campaigns = useQuery(api.campaigns.list, currentUser ? { userId: currentUser._id } : "skip");
   const stats = useQuery(api.campaigns.getStats, currentUser ? { userId: currentUser._id } : "skip");
+  
+  // Fetch all segments to get customer counts
+  const segments = useQuery(api.segments.list, currentUser ? { userId: currentUser._id } : "skip");
 
-  if (!currentUser || !campaigns || !stats) {
+  if (!currentUser || !campaigns || !stats || !segments) {
     return (
       <div className="flex min-h-screen bg-white">
         <Sidebar />
@@ -22,6 +25,12 @@ export default function CampaignsPage() {
       </div>
     );
   }
+
+  // Create a map of segmentId -> customer count for quick lookup
+  const segmentCustomerCounts = {};
+  segments.forEach(segment => {
+    segmentCustomerCounts[segment._id] = segment.customerIds?.length || 0;
+  });
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -152,7 +161,9 @@ export default function CampaignsPage() {
                       </td>
                       <td className="px-4 py-4">
                         <div className="text-sm text-gray-900">
-                          {campaign.sentCount || 0}
+                          {campaign.status === "draft" 
+                            ? (campaign.segmentId ? segmentCustomerCounts[campaign.segmentId] || 0 : 0)
+                            : (campaign.sentCount || 0)}
                         </div>
                       </td>
                       <td className="px-4 py-4">

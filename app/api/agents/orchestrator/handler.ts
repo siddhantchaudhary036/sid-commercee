@@ -126,9 +126,9 @@ Respond in JSON format:
       };
       
       segmentConditions = [
-        { field: 'customerLifetimeValue', operator: '>=', value: Math.round(ltv75thPercentile).toString() },
-        { field: 'emailOptIn', operator: '=', value: 'true' },
-        { field: 'daysSinceLastOrder', operator: '>=', value: inactiveDays.toString() }
+        { field: 'customerLifetimeValue', operator: '>=', value: Math.round(ltv75thPercentile) },
+        { field: 'emailOptIn', operator: '=', value: true },
+        { field: 'daysSinceLastOrder', operator: '>=', value: inactiveDays }
       ];
       
       steps.push(`✓ Found ${customers.total} high-LTV customers (≥75th percentile)`);
@@ -145,9 +145,9 @@ Respond in JSON format:
         limit: 100
       });
       segmentConditions = [
-        { field: 'daysSinceLastOrder', operator: '>', value: '90' },
-        { field: 'totalOrders', operator: '>=', value: '5' },
-        { field: 'emailOptIn', operator: '=', value: 'true' }
+        { field: 'daysSinceLastOrder', operator: '>', value: 90 },
+        { field: 'totalOrders', operator: '>=', value: 5 },
+        { field: 'emailOptIn', operator: '=', value: true }
       ];
       steps.push(`✓ Found ${customers.total} at-risk customers (90+ days inactive, 5+ orders, email subscribers)`);
     } else if (plan.segmentCriteria.toLowerCase().includes('loyal') || 
@@ -159,7 +159,7 @@ Respond in JSON format:
       });
       segmentConditions = [
         { field: 'rfmSegment', operator: '=', value: 'Champions' },
-        { field: 'emailOptIn', operator: '=', value: 'true' }
+        { field: 'emailOptIn', operator: '=', value: true }
       ];
       steps.push(`✓ Found ${customers.total} champion customers (email subscribers)`);
     } else {
@@ -177,7 +177,7 @@ Respond in JSON format:
       };
       
       segmentConditions = [
-        { field: 'emailOptIn', operator: '=', value: 'true' }
+        { field: 'emailOptIn', operator: '=', value: true }
       ];
       steps.push(`✓ Found ${customers.total} email subscribers`);
     }
@@ -197,7 +197,7 @@ Respond in JSON format:
     console.log('💾 [ORCHESTRATOR] Creating segment with params:', {
       segmentName,
       conditions: segmentConditions.length > 0 ? segmentConditions : [
-        { field: 'emailOptIn', operator: '=', value: 'true' }
+        { field: 'emailOptIn', operator: '=', value: true }
       ],
       userId
     });
@@ -207,7 +207,7 @@ Respond in JSON format:
       name: segmentName,
       description: segmentDescription,
       conditions: segmentConditions.length > 0 ? segmentConditions : [
-        { field: 'emailOptIn', operator: '=', value: 'true' }
+        { field: 'emailOptIn', operator: '=', value: true }
       ],
       aiGenerated: true,
       aiPrompt: message
