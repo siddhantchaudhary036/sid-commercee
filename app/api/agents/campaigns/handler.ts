@@ -10,9 +10,28 @@ export async function handleCampaignsRequest(
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
   try {
+    // Fetch product data for context
+    const topProducts = await fetchQuery(api.products.getTopByRevenue, {
+      userId: userId as any,
+      limit: 3,
+    });
+    
+    const productStats = await fetchQuery(api.products.getStats, {
+      userId: userId as any,
+    });
+
+    const productContext = topProducts.length > 0 ? `
+PRODUCT CONTEXT:
+- Best Seller: ${productStats.topProduct?.name || 'N/A'} ($${productStats.topProduct?.revenue.toLocaleString() || 0} revenue)
+- Top Products: ${topProducts.map((p: any) => `${p.name} ($${p.price})`).join(', ')}
+
+When user mentions products in campaigns, reference these top products.
+` : '';
 
     // System prompt for Campaigns Agent
     const systemPrompt = `You are an email campaign specialist. Create and manage email campaigns.
+
+${productContext}
 
 Available actions:
 1. create_campaign - Create new campaign (draft status)

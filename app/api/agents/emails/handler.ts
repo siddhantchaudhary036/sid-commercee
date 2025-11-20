@@ -1,4 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -8,9 +10,46 @@ export async function handleEmailsRequest(
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
   try {
+    // Fetch product data for context
+    const products = await fetchQuery(api.products.list, {
+      userId: userId as any,
+    });
+    
+    const topProducts = await fetchQuery(api.products.getTopByRevenue, {
+      userId: userId as any,
+      limit: 5,
+    });
+    
+    const productStats = await fetchQuery(api.products.getStats, {
+      userId: userId as any,
+    });
+
+    // Build product context
+    const productContext = `
+AVAILABLE PRODUCTS (${products.length} total):
+${topProducts.map((p: any, i: number) => `
+${i + 1}. ${p.name}
+   - Price: $${p.price}
+   - Category: ${p.category}
+   - Total Revenue: $${p.totalRevenue.toLocaleString()}
+   - Total Sales: ${p.totalSales} units
+   - Average Rating: ${p.averageRating || 'N/A'}
+   ${p.description ? `- Description: ${p.description}` : ''}
+`).join('')}
+
+PRODUCT STATS:
+- Best Seller: ${productStats.topProduct?.name || 'N/A'} ($${productStats.topProduct?.revenue.toLocaleString() || 0} revenue)
+- Total Revenue: $${productStats.totalRevenue.toLocaleString()}
+- Categories: ${productStats.categories.join(', ')}
+
+When user mentions "best product", "top product", or "best seller", use ${productStats.topProduct?.name || 'the top product'}.
+When user mentions a specific product category, reference products from that category.
+`;
 
     // System prompt for Emails Agent
     const systemPrompt = `You are an expert email copywriter specializing in e-commerce marketing.
+
+${productContext}
 
 Available actions:
 1. generate_email_content - Generate complete email with subject + body
@@ -67,7 +106,16 @@ Always generate multiple subject line options for A/B testing.`;
     if (jsonMatch) {
       try {
         const actionRequest = JSON.parse(jsonMatch[0]);
-        const content = await generateContent(actionRequest);
+        
+        // If user mentioned products, add product details to parameters
+        if (message.toLowerCase().includes('best product') || 
+            message.toLowerCase().includes('top product') ||
+            message.toLowerCase().includes('best seller')) {
+          actionRequest.parameters.productName = productStats.topProduct?.name;
+          actionRequest.parameters.productPrice = topProducts[0]?.price;
+        }
+        
+        const content = await generateContent(actionRequest, productContext);
         
         const dataMessage = `Here's the generated content:\n\n${content}\n\nNow present this to the user in a friendly way.`;
         result = await chat.sendMessage(dataMessage);
@@ -85,7 +133,7 @@ Always generate multiple subject line options for A/B testing.`;
   }
 }
 
-async function generateContent(actionRequest: any): Promise<string> {
+async function generateContent(actionRequest: any, productContext?: string): Promise<string> {
   const { action, parameters } = actionRequest;
   const contentModel = genAI.getGenerativeModel({
     model: "gemini-2.5-flash"
@@ -99,6 +147,10 @@ async function generateContent(actionRequest: any): Promise<string> {
 Tone: ${parameters.tone || 'professional'}
 ${parameters.includeDiscount ? `Include discount: ${parameters.discountAmount || '20%'}` : ''}
 ${parameters.keyMessage ? `Key message: ${parameters.keyMessage}` : ''}
+${parameters.productName ? `Feature product: ${parameters.productName}` : ''}
+${parameters.productPrice ? `Product price: $${parameters.productPrice}` : ''}
+
+${productContext || ''}
 
 Generate:
 1. Subject line (under 60 chars)

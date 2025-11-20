@@ -16,6 +16,7 @@ import type * as emailTemplates from "../emailTemplates.js";
 import type * as flows from "../flows.js";
 import type * as insights from "../insights.js";
 import type * as migrations from "../migrations.js";
+import type * as products from "../products.js";
 import type * as seed from "../seed.js";
 import type * as segments from "../segments.js";
 import type * as users from "../users.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   flows: typeof flows;
   insights: typeof insights;
   migrations: typeof migrations;
+  products: typeof products;
   seed: typeof seed;
   segments: typeof segments;
   users: typeof users;
