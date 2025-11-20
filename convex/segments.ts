@@ -102,8 +102,7 @@ export const previewSegment = query({
 
     // Sort by LTV descending
     return customers
-      .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
-      .slice(0, 100);
+      .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0));
   },
 });
 

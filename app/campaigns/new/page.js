@@ -612,7 +612,6 @@ export default function NewCampaignPage() {
                                 firstName: "Sarah",
                                 lastName: "Johnson",
                                 totalSpent: "$1,234",
-                                loyaltyTier: "Gold",
                                 lastOrderDate: "Nov 15, 2025",
                               };
                               return examples[variable] || match;

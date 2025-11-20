@@ -256,9 +256,6 @@ async function seedCustomers(ctx: any, userId: any, count: number) {
         ? faker.date.recent({ days: 60 }).toISOString()
         : undefined,
       
-      // Loyalty
-      loyaltyTier: faker.helpers.arrayElement(["Bronze", "Silver", "Gold", "Platinum"]),
-      
       // Metadata
       userId,
       createdAt: createdAt.toISOString(),

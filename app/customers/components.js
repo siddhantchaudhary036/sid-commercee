@@ -1,5 +1,5 @@
 import React from "react";
-import { MoreVertical, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -29,7 +29,6 @@ export function CustomerTable({ customers, expandedRow, setExpandedRow }) {
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider">
               Risk
             </th>
-            <th className="px-4 py-3"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
@@ -153,20 +152,10 @@ function CustomerRow({ customer, isExpanded, onToggle }) {
             {churnRisk}
           </span>
         </td>
-        <td className="px-4 py-4">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
-        </td>
       </tr>
       {isExpanded && (
         <tr>
-          <td colSpan="7" className="px-4 py-6 bg-gray-50">
+          <td colSpan="6" className="px-4 py-6 bg-gray-50">
             <ExpandedCustomerDetails customer={customer} />
           </td>
         </tr>
@@ -182,14 +171,154 @@ function ExpandedCustomerDetails({ customer }) {
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-6 mb-4">
+      <div className="grid grid-cols-4 gap-6 mb-4">
+      {/* Identity & Contact */}
       <div className="border border-gray-200 rounded-lg p-4 bg-white">
-        <div className="text-xs font-semibold text-gray-900 mb-3">Quick Stats</div>
+        <div className="text-xs font-semibold text-gray-900 mb-3">Contact Information</div>
         <div className="space-y-2 text-xs">
           <div className="flex justify-between">
-            <span className="text-gray-600">Created:</span>
+            <span className="text-gray-600">Email:</span>
+            <span className="text-gray-900">{customer.email}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Phone:</span>
+            <span className="text-gray-900">{customer.phone || "N/A"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Address:</span>
+            <span className="text-gray-900">{customer.addressLine1 || "N/A"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">City:</span>
+            <span className="text-gray-900">{customer.city || "N/A"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">State:</span>
+            <span className="text-gray-900">{customer.state || "N/A"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Zip:</span>
+            <span className="text-gray-900">{customer.zipCode || "N/A"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Country:</span>
+            <span className="text-gray-900">{customer.country || "N/A"}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Demographics & Preferences */}
+      <div className="border border-gray-200 rounded-lg p-4 bg-white">
+        <div className="text-xs font-semibold text-gray-900 mb-3">Demographics</div>
+        <div className="space-y-2 text-xs">
+          <div className="flex justify-between">
+            <span className="text-gray-600">Birthday:</span>
             <span className="text-gray-900">
-              {new Date(customer.createdAt).toLocaleDateString()}
+              {customer.birthday ? new Date(customer.birthday).toLocaleDateString() : "N/A"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Gender:</span>
+            <span className="text-gray-900">{customer.gender || "N/A"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Language:</span>
+            <span className="text-gray-900">{customer.languagePreference || "en"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Email Opt-In:</span>
+            <span className="text-gray-900">{customer.emailOptIn ? "Yes" : "No"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">SMS Opt-In:</span>
+            <span className="text-gray-900">{customer.smsOptIn ? "Yes" : "No"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Marketing:</span>
+            <span className="text-gray-900">{customer.marketingConsent ? "Yes" : "No"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Verified:</span>
+            <span className="text-gray-900">{customer.emailVerified ? "Yes" : "No"}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Purchase Metrics */}
+      <div className="border border-gray-200 rounded-lg p-4 bg-white">
+        <div className="text-xs font-semibold text-gray-900 mb-3">Purchase History</div>
+        <div className="space-y-2 text-xs">
+          <div className="flex justify-between">
+            <span className="text-gray-600">Total Orders:</span>
+            <span className="text-gray-900">{customer.totalOrders}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Total Spent:</span>
+            <span className="text-gray-900">${customer.totalSpent.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Avg Order:</span>
+            <span className="text-gray-900">${customer.averageOrderValue.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">First Order:</span>
+            <span className="text-gray-900">
+              {customer.firstOrderDate ? new Date(customer.firstOrderDate).toLocaleDateString() : "N/A"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Last Order:</span>
+            <span className="text-gray-900">
+              {customer.lastOrderDate ? new Date(customer.lastOrderDate).toLocaleDateString() : "N/A"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Last Amount:</span>
+            <span className="text-gray-900">${(customer.lastOrderAmount || 0).toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Days Since:</span>
+            <span className="text-gray-900">{customer.daysSinceLastOrder || "N/A"}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* RFM & Engagement */}
+      <div className="border border-gray-200 rounded-lg p-4 bg-white">
+        <div className="text-xs font-semibold text-gray-900 mb-3">Engagement & Loyalty</div>
+        <div className="space-y-2 text-xs">
+          <div className="flex justify-between">
+            <span className="text-gray-600">RFM Segment:</span>
+            <span className="text-gray-900">{customer.rfmSegment || "N/A"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Recency Score:</span>
+            <span className="text-gray-900">{customer.recencyScore || "N/A"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Frequency Score:</span>
+            <span className="text-gray-900">{customer.frequencyScore || "N/A"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Monetary Score:</span>
+            <span className="text-gray-900">{customer.monetaryScore || "N/A"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">LTV:</span>
+            <span className="text-gray-900">${(customer.customerLifetimeValue || 0).toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Email Opens:</span>
+            <span className="text-gray-900">{customer.emailOpensCount || 0}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Email Clicks:</span>
+            <span className="text-gray-900">{customer.emailClicksCount || 0}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Last Visit:</span>
+            <span className="text-gray-900">
+              {customer.lastWebsiteVisit ? new Date(customer.lastWebsiteVisit).toLocaleDateString() : "Never"}
             </span>
           </div>
           <div className="flex justify-between">
@@ -197,60 +326,8 @@ function ExpandedCustomerDetails({ customer }) {
             <span className="text-gray-900">{customer.source || "Website"}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Loyalty Tier:</span>
-            <span className="text-gray-900">
-              {customer.loyaltyTier || "Bronze"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="border border-gray-200 rounded-lg p-4 bg-white">
-        <div className="text-xs font-semibold text-gray-900 mb-3">Engagement</div>
-        <div className="space-y-2 text-xs">
-          <div className="flex justify-between">
-            <span className="text-gray-600">Opens:</span>
-            <span className="text-gray-900">{customer.emailOpensCount || 0}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Clicks:</span>
-            <span className="text-gray-900">{customer.emailClicksCount || 0}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Last Visit:</span>
-            <span className="text-gray-900">
-              {customer.lastWebsiteVisit 
-                ? new Date(customer.lastWebsiteVisit).toLocaleDateString()
-                : "Never"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="border border-gray-200 rounded-lg p-4 bg-white">
-        <div className="text-xs font-semibold text-gray-900 mb-3">
-          Purchase History
-        </div>
-        <div className="space-y-2 text-xs">
-          <div className="flex justify-between">
-            <span className="text-gray-600">Last Order:</span>
-            <span className="text-gray-900">
-              {customer.lastOrderDate
-                ? new Date(customer.lastOrderDate).toLocaleDateString()
-                : "Never"}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Amount:</span>
-            <span className="text-gray-900">
-              ${(customer.lastOrderAmount || 0).toFixed(2)}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Avg Order:</span>
-            <span className="text-gray-900">
-              ${customer.averageOrderValue.toFixed(2)}
-            </span>
+            <span className="text-gray-600">Created:</span>
+            <span className="text-gray-900">{new Date(customer.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
       </div>
@@ -374,7 +451,7 @@ export function AddCustomerModal({ userId, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-semibold text-gray-900 mb-6">Add Customer</h2>
         

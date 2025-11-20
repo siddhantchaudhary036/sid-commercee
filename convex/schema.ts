@@ -71,9 +71,6 @@ export default defineSchema({
     lastEmailOpenDate: v.optional(v.string()),
     lastEmailClickDate: v.optional(v.string()),
     
-    // LOYALTY
-    loyaltyTier: v.optional(v.string()), // "Bronze", "Silver", "Gold", "Platinum"
-    
     // METADATA
     userId: v.id("users"),
     createdAt: v.string(),

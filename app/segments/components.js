@@ -430,12 +430,6 @@ function ConditionRow({ condition, isFirst, onChange, onRemove }) {
         type: "enum",
         options: ["Low", "Medium", "High"],
       },
-      {
-        value: "loyaltyTier",
-        label: "Loyalty Tier",
-        type: "enum",
-        options: ["Bronze", "Silver", "Gold", "Platinum"],
-      },
     ],
     Engagement: [
       { value: "emailOptIn", label: "Email Opt-In", type: "boolean" },
