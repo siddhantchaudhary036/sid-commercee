@@ -7,6 +7,7 @@ import { handleSegmentsRequest } from "../agents/segments/handler";
 import { handleEmailsRequest } from "../agents/emails/handler";
 import { handleCampaignsRequest } from "../agents/campaigns/handler";
 import { handleOrchestratorRequest } from "../agents/orchestrator/handler";
+import { handleFlowsRequest } from "../agents/flows/handler";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
         response = await handleCampaignsRequest(message, userId, conversationHistory);
         break;
       case "flows":
-        response = "Flows agent coming soon! I'll help you build automated email sequences.\n\nFor now, you can:\n- Visit /flows to create flows manually\n- Use the visual flow editor\n\nThis will be fully automated soon.";
+        response = await handleFlowsRequest(message, userId, conversationHistory);
         break;
       case "emails":
         response = await handleEmailsRequest(message, userId, conversationHistory);

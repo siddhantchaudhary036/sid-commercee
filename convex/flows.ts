@@ -92,6 +92,7 @@ export const create = mutation({
           type: v.string(),
           data: v.any(),
           position: v.object({ x: v.number(), y: v.number() }),
+          measured: v.optional(v.object({ width: v.number(), height: v.number() })),
         })
       ),
       edges: v.array(
@@ -145,6 +146,7 @@ export const update = mutation({
             type: v.string(),
             data: v.any(),
             position: v.object({ x: v.number(), y: v.number() }),
+            measured: v.optional(v.object({ width: v.number(), height: v.number() })),
           })
         ),
         edges: v.array(
