@@ -71,7 +71,7 @@ async function routeToAgent(
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<RoutingResult> {
   const routingModel = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash-exp"
+    model: "gemini-2.5-flash"
   });
 
   const routingPrompt = buildRoutingPrompt(message, conversationHistory);

@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { NextResponse } from "next/server";
@@ -9,88 +9,28 @@ export async function POST(request: Request) {
   try {
     const { message, userId, conversationHistory } = await request.json();
 
-    // Define tools for Campaigns Agent
-    // @ts-ignore - Gemini SDK types are overly strict
-    const tools = [{
-      functionDeclarations: [
-        {
-          name: "create_campaign",
-          description: "Create a new email campaign",
-          parameters: {
-            type: SchemaType.OBJECT,
-            properties: {
-              name: {
-                type: SchemaType.STRING,
-                description: "Campaign name"
-              },
-              segmentId: {
-                type: SchemaType.STRING,
-                description: "Target segment ID (optional)"
-              },
-              subject: {
-                type: SchemaType.STRING,
-                description: "Email subject line"
-              },
-              content: {
-                type: SchemaType.STRING,
-                description: "Email HTML content"
-              },
-              description: {
-                type: SchemaType.STRING,
-                description: "Campaign description"
-              }
-            },
-            required: ["name", "subject", "content"]
-          }
-        },
-        {
-          name: "list_campaigns",
-          description: "List all campaigns, optionally filtered by status",
-          parameters: {
-            type: SchemaType.OBJECT,
-            properties: {
-              status: {
-                type: SchemaType.STRING,
-                description: "Filter by status: draft, scheduled, sent"
-              }
-            }
-          }
-        },
-        {
-          name: "get_campaign_details",
-          description: "Get full details of a specific campaign",
-          parameters: {
-            type: SchemaType.OBJECT,
-            properties: {
-              campaignId: {
-                type: SchemaType.STRING,
-                description: "Campaign ID"
-              }
-            },
-            required: ["campaignId"]
-          }
-        },
-        {
-          name: "list_segments",
-          description: "List available segments for targeting",
-          parameters: {
-            type: SchemaType.OBJECT,
-            properties: {}
-          }
-        },
-        {
-          name: "get_campaign_stats",
-          description: "Get overall campaign statistics",
-          parameters: {
-            type: SchemaType.OBJECT,
-            properties: {}
-          }
-        }
-      ]
-    }];
-
     // System prompt for Campaigns Agent
     const systemPrompt = `You are an email campaign specialist. Create and manage email campaigns.
+
+Available actions:
+1. create_campaign - Create new campaign (draft status)
+2. list_campaigns - List all campaigns with optional status filter
+3. get_campaign_details - Get full campaign information
+4. list_segments - Show available segments for targeting
+5. get_campaign_stats - Overall campaign statistics
+
+When you need to take an action, respond with JSON:
+{
+  "action": "create_campaign" | "list_campaigns" | "get_campaign_details" | "list_segments" | "get_campaign_stats",
+  "parameters": {
+    "name": "Campaign name",
+    "segmentId": "segment ID",
+    "subject": "Email subject",
+    "content": "Email HTML content",
+    "description": "Campaign description"
+  },
+  "reasoning": "Why you're taking this action"
+}
 
 Campaign Creation Workflow:
 1. Identify target segment (ask user or suggest one)
@@ -101,68 +41,45 @@ Campaign Creation Workflow:
 
 Guidelines:
 - Always create campaigns as "draft" first
-- Mention segment size: "This will go to 234 customers"
+- Mention segment size
 - Subject lines should create urgency/curiosity
 - Offer to preview before sending
-- Suggest optimal send times (typically Tue-Thu, 10am-2pm)
+- Suggest optimal send times (Tue-Thu, 10am-2pm)
 
-Subject Line Best Practices:
-- Use questions (41% higher open rate)
-- Include numbers
-- Keep under 60 characters
-- Create urgency ("Today only", "Last chance")
+If user wants to schedule/send, explain they should do that from campaigns page after reviewing.`;
 
-When creating campaigns:
-- Confirm the target audience
-- Explain what the campaign will do
-- Provide next steps (review, schedule, send)
-
-If user wants to schedule or send immediately, explain they should do that from the campaigns page after reviewing.`;
-
-    // Create model with tools
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
-      tools,
+      model: "gemini-2.5-flash",
       systemInstruction: systemPrompt
     });
 
-    // Build conversation history
     const history = conversationHistory?.map((msg: any) => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     })) || [];
 
-    // Start chat
     const chat = model.startChat({ history });
-
-    // Send message
     let result = await chat.sendMessage(message);
+    let responseText = result.response.text();
 
-    // Handle function calls
-    let iterationCount = 0;
-    const maxIterations = 10;
-
-    while (result.response.functionCalls() && iterationCount < maxIterations) {
-      iterationCount++;
-      const functionCalls = result.response.functionCalls();
-      const functionResponses = [];
-
-      for (const call of functionCalls) {
-        console.log(`Executing function: ${call.name}`, call.args);
-        const response = await executeFunction(call, userId);
-        functionResponses.push({
-          functionResponse: {
-            name: call.name,
-            response
-          }
-        });
+    // Check for action request
+    const jsonMatch = responseText.match(/\{[\s\S]*"action"[\s\S]*\}/);
+    
+    if (jsonMatch) {
+      try {
+        const actionRequest = JSON.parse(jsonMatch[0]);
+        const data = await executeAction(actionRequest, userId);
+        
+        const dataMessage = `Here's the result:\n\n${JSON.stringify(data, null, 2)}\n\nNow provide a conversational response to the user.`;
+        result = await chat.sendMessage(dataMessage);
+        responseText = result.response.text();
+      } catch (error) {
+        console.error('Action execution error:', error);
       }
-
-      result = await chat.sendMessage(functionResponses);
     }
 
     return NextResponse.json({
-      response: result.response.text()
+      response: responseText
     });
 
   } catch (error) {
@@ -174,26 +91,27 @@ If user wants to schedule or send immediately, explain they should do that from 
   }
 }
 
-async function executeFunction(call: any, userId: string) {
+async function executeAction(actionRequest: any, userId: string) {
+  const { action, parameters } = actionRequest;
+
   try {
-    switch (call.name) {
+    switch (action) {
       case "create_campaign":
         const campaignId = await fetchMutation(api.campaigns.create, {
           userId: userId as any,
-          name: call.args.name,
-          subject: call.args.subject,
-          content: call.args.content,
-          description: call.args.description,
-          segmentId: call.args.segmentId as any,
+          name: parameters.name,
+          subject: parameters.subject,
+          content: parameters.content,
+          description: parameters.description,
+          segmentId: parameters.segmentId as any,
           aiGenerated: true,
-          aiPrompt: call.args.name
+          aiPrompt: parameters.name
         });
         
-        // Get segment info if provided
         let segmentInfo = null;
-        if (call.args.segmentId) {
+        if (parameters.segmentId) {
           const segment = await fetchQuery(api.segments.getById, {
-            id: call.args.segmentId as any
+            id: parameters.segmentId as any
           });
           segmentInfo = {
             name: segment?.name,
@@ -205,13 +123,13 @@ async function executeFunction(call: any, userId: string) {
           success: true,
           campaignId,
           segmentInfo,
-          message: `Campaign created successfully as draft${segmentInfo ? ` targeting ${segmentInfo.customerCount} customers` : ''}`
+          message: `Campaign created as draft${segmentInfo ? ` targeting ${segmentInfo.customerCount} customers` : ''}`
         };
 
       case "list_campaigns":
         const campaigns = await fetchQuery(api.campaigns.list, {
           userId: userId as any,
-          status: call.args.status
+          status: parameters?.status
         });
         
         return {
@@ -228,7 +146,7 @@ async function executeFunction(call: any, userId: string) {
 
       case "get_campaign_details":
         const campaign = await fetchQuery(api.campaigns.getById, {
-          id: call.args.campaignId as any
+          id: parameters.campaignId as any
         });
         
         if (!campaign) {
@@ -262,17 +180,15 @@ async function executeFunction(call: any, userId: string) {
         };
 
       case "get_campaign_stats":
-        const stats = await fetchQuery(api.campaigns.getStats, {
+        return await fetchQuery(api.campaigns.getStats, {
           userId: userId as any
         });
-        
-        return stats;
 
       default:
-        return { error: `Unknown function: ${call.name}` };
+        return { error: `Unknown action: ${action}` };
     }
   } catch (error: any) {
-    console.error(`Error executing ${call.name}:`, error);
-    return { error: error.message || "Function execution failed" };
+    console.error(`Error executing ${action}:`, error);
+    return { error: error.message || "Action execution failed" };
   }
 }

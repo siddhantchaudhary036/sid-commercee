@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { NextResponse } from "next/server";
@@ -9,112 +9,33 @@ export async function POST(request: Request) {
   try {
     const { message, userId, conversationHistory } = await request.json();
 
-    // Define tools for Customer Analyst Agent
-    // @ts-ignore - Gemini SDK types are overly strict
-    const tools = [{
-      functionDeclarations: [
-        {
-          name: "query_customers",
-          description: "Query customers with filters and get matching results",
-          parameters: {
-            type: SchemaType.OBJECT,
-            properties: {
-              segment: {
-                type: SchemaType.STRING,
-                description: "RFM segment filter: Champions, Loyal, Potential, At-Risk, Lost"
-              },
-              state: {
-                type: SchemaType.STRING,
-                description: "US state filter (e.g., 'California', 'Texas')"
-              },
-              churnRisk: {
-                type: SchemaType.STRING,
-                description: "Churn risk level: High, Medium, Low"
-              },
-              minLtv: {
-                type: SchemaType.NUMBER,
-                description: "Minimum customer lifetime value"
-              },
-              maxLtv: {
-                type: SchemaType.NUMBER,
-                description: "Maximum customer lifetime value"
-              },
-              limit: {
-                type: SchemaType.NUMBER,
-                description: "Maximum number of results to return (default: 50)"
-              }
-            }
-          }
-        },
-        {
-          name: "get_customer_stats",
-          description: "Get overall customer statistics and metrics",
-          parameters: {
-            type: SchemaType.OBJECT,
-            properties: {}
-          }
-        },
-        {
-          name: "get_segment_distribution",
-          description: "Get breakdown of customers by RFM segment with counts and revenue",
-          parameters: {
-            type: SchemaType.OBJECT,
-            properties: {}
-          }
-        },
-        {
-          name: "get_customer_insights",
-          description: "Get actionable insights about customer behavior (churn risk, upsell opportunities, etc.)",
-          parameters: {
-            type: SchemaType.OBJECT,
-            properties: {}
-          }
-        },
-        {
-          name: "search_customers",
-          description: "Search for specific customers by name or email",
-          parameters: {
-            type: SchemaType.OBJECT,
-            properties: {
-              searchTerm: {
-                type: SchemaType.STRING,
-                description: "Name or email to search for"
-              },
-              limit: {
-                type: SchemaType.NUMBER,
-                description: "Maximum results (default: 50)"
-              }
-            },
-            required: ["searchTerm"]
-          }
-        }
-      ]
-    }];
-
     // System prompt for Customer Analyst Agent
-    const systemPrompt = `You are a customer data analyst. Answer questions about customer data using the available functions.
+    const systemPrompt = `You are a customer data analyst. Answer questions about customer data.
+
+Available actions you can take:
+1. query_customers - Filter customers by segment, state, churnRisk, minLtv, maxLtv
+2. get_customer_stats - Get overall statistics
+3. get_segment_distribution - Get breakdown by RFM segment
+4. get_customer_insights - Get actionable insights
+5. search_customers - Search by name or email
+
+When you need data, respond with JSON in this format:
+{
+  "action": "query_customers" | "get_customer_stats" | "get_segment_distribution" | "get_customer_insights" | "search_customers",
+  "parameters": { /* action-specific parameters */ },
+  "reasoning": "Why you're taking this action"
+}
+
+After receiving data, provide a conversational response with insights.
 
 Guidelines:
-- Use query_customers for filtering ("Show me customers from Texas")
-- Use get_customer_stats for overall statistics ("How many customers do I have?")
-- Use get_segment_distribution for segment breakdowns ("How many VIP customers?")
-- Use get_customer_insights for actionable insights ("Who is at risk of churning?")
-- Use search_customers for finding specific people ("Find John Smith")
-- Always provide context with your answers (totals, percentages, comparisons)
 - Format numbers nicely (use commas, dollar signs)
+- Provide context and comparisons
 - Be conversational and insightful
+- If asked about campaign/flow performance, redirect to Insights page`;
 
-If asked about campaign/flow performance, say: "For performance analysis, please visit the Insights page where our AI analyzes campaign and flow effectiveness."
-
-Example responses:
-- "You have 1,234 customers with a total lifetime value of $456,789. Your average customer is worth $370."
-- "I found 89 customers in California. The top 5 by spending are: [list]. Would you like to create a segment for them?"
-- "You have 45 customers at high churn risk - they've ordered 5+ times but haven't purchased in 90+ days. I recommend creating a win-back campaign."`;
-
-    // Create model with tools
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
-      tools,
+      model: "gemini-2.5-flash",
       systemInstruction: systemPrompt
     });
 
@@ -124,37 +45,31 @@ Example responses:
       parts: [{ text: msg.content }]
     })) || [];
 
-    // Start chat
     const chat = model.startChat({ history });
 
     // Send message
     let result = await chat.sendMessage(message);
+    let responseText = result.response.text();
 
-    // Handle function calls
-    let iterationCount = 0;
-    const maxIterations = 10;
-
-    while (result.response.functionCalls() && iterationCount < maxIterations) {
-      iterationCount++;
-      const functionCalls = result.response.functionCalls();
-      const functionResponses = [];
-
-      for (const call of functionCalls) {
-        console.log(`Executing function: ${call.name}`, call.args);
-        const response = await executeFunction(call, userId);
-        functionResponses.push({
-          functionResponse: {
-            name: call.name,
-            response
-          }
-        });
+    // Check if response contains an action request
+    const jsonMatch = responseText.match(/\{[\s\S]*"action"[\s\S]*\}/);
+    
+    if (jsonMatch) {
+      try {
+        const actionRequest = JSON.parse(jsonMatch[0]);
+        const data = await executeAction(actionRequest, userId);
+        
+        // Send data back to model for final response
+        const dataMessage = `Here's the data you requested:\n\n${JSON.stringify(data, null, 2)}\n\nNow provide a conversational response to the user.`;
+        result = await chat.sendMessage(dataMessage);
+        responseText = result.response.text();
+      } catch (error) {
+        console.error('Action execution error:', error);
       }
-
-      result = await chat.sendMessage(functionResponses);
     }
 
     return NextResponse.json({
-      response: result.response.text()
+      response: responseText
     });
 
   } catch (error) {
@@ -166,23 +81,25 @@ Example responses:
   }
 }
 
-async function executeFunction(call: any, userId: string) {
+async function executeAction(actionRequest: any, userId: string) {
+  const { action, parameters } = actionRequest;
+
   try {
-    switch (call.name) {
+    switch (action) {
       case "query_customers":
         const customers = await fetchQuery(api.customers.listWithFilters, {
           userId: userId as any,
-          segment: call.args.segment,
-          state: call.args.state,
-          churnRisk: call.args.churnRisk,
-          minLtv: call.args.minLtv,
-          maxLtv: call.args.maxLtv,
-          limit: call.args.limit || 50
+          segment: parameters?.segment,
+          state: parameters?.state,
+          churnRisk: parameters?.churnRisk,
+          minLtv: parameters?.minLtv,
+          maxLtv: parameters?.maxLtv,
+          limit: parameters?.limit || 50
         });
         
         return {
           total: customers.total,
-          customers: customers.customers.map((c: any) => ({
+          customers: customers.customers.slice(0, 10).map((c: any) => ({
             name: `${c.firstName} ${c.lastName}`,
             email: c.email,
             state: c.state,
@@ -194,35 +111,30 @@ async function executeFunction(call: any, userId: string) {
         };
 
       case "get_customer_stats":
-        const stats = await fetchQuery(api.customers.getStats, {
+        return await fetchQuery(api.customers.getStats, {
           userId: userId as any
         });
-        
-        return stats;
 
       case "get_segment_distribution":
         const distribution = await fetchQuery(api.customers.getSegmentDistribution, {
           userId: userId as any
         });
-        
         return { distribution };
 
       case "get_customer_insights":
-        const insights = await fetchQuery(api.customers.getInsights, {
+        return await fetchQuery(api.customers.getInsights, {
           userId: userId as any
         });
-        
-        return insights;
 
       case "search_customers":
         const searchResults = await fetchQuery(api.customers.search, {
-          searchTerm: call.args.searchTerm,
-          limit: call.args.limit || 50
+          searchTerm: parameters?.searchTerm || "",
+          limit: parameters?.limit || 50
         });
         
         return {
           count: searchResults.length,
-          customers: searchResults.map((c: any) => ({
+          customers: searchResults.slice(0, 10).map((c: any) => ({
             name: `${c.firstName} ${c.lastName}`,
             email: c.email,
             totalSpent: c.totalSpent,
@@ -231,10 +143,10 @@ async function executeFunction(call: any, userId: string) {
         };
 
       default:
-        return { error: `Unknown function: ${call.name}` };
+        return { error: `Unknown action: ${action}` };
     }
   } catch (error: any) {
-    console.error(`Error executing ${call.name}:`, error);
-    return { error: error.message || "Function execution failed" };
+    console.error(`Error executing ${action}:`, error);
+    return { error: error.message || "Action execution failed" };
   }
 }

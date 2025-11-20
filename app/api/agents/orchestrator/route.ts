@@ -31,7 +31,7 @@ async function orchestrateTask(message: string, userId: string): Promise<string>
   try {
     // Use Gemini to understand the task and break it down
     const planningModel = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp"
+      model: "gemini-2.5-flash"
     });
 
     const planningPrompt = `Analyze this marketing task and determine what needs to be done:
@@ -154,7 +154,7 @@ Respond in JSON format:
     steps.push(`✍️ **Step 3: Writing Email Content**`);
     
     const emailModel = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp"
+      model: "gemini-2.5-flash"
     });
 
     const emailPrompt = `Write a ${plan.campaignType} email for ${plan.audience}.
