@@ -13,6 +13,7 @@ import type * as customers from "../customers.js";
 import type * as dashboard from "../dashboard.js";
 import type * as emailTemplates from "../emailTemplates.js";
 import type * as flows from "../flows.js";
+import type * as insights from "../insights.js";
 import type * as migrations from "../migrations.js";
 import type * as seed from "../seed.js";
 import type * as segments from "../segments.js";
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   dashboard: typeof dashboard;
   emailTemplates: typeof emailTemplates;
   flows: typeof flows;
+  insights: typeof insights;
   migrations: typeof migrations;
   seed: typeof seed;
   segments: typeof segments;

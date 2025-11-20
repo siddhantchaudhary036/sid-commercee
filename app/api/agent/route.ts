@@ -130,13 +130,13 @@ Respond with JSON only:
 }`;
 }
 
-// Placeholder handlers - Will be implemented in subsequent steps
+// Specialist agent handlers - Call dedicated agent endpoints
 async function handleCustomerAnalyst(
   message: string,
   userId: string,
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
-  return "Customer Analyst agent coming soon. I'll help you analyze customer data.";
+  return await callAgentEndpoint('/api/agents/customer-analyst', message, userId, conversationHistory);
 }
 
 async function handleSegments(
@@ -144,7 +144,7 @@ async function handleSegments(
   userId: string,
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
-  return "Segments agent coming soon. I'll help you create customer segments.";
+  return await callAgentEndpoint('/api/agents/segments', message, userId, conversationHistory);
 }
 
 async function handleCampaigns(
@@ -152,7 +152,7 @@ async function handleCampaigns(
   userId: string,
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
-  return "Campaigns agent coming soon. I'll help you create email campaigns.";
+  return await callAgentEndpoint('/api/agents/campaigns', message, userId, conversationHistory);
 }
 
 async function handleFlows(
@@ -160,7 +160,7 @@ async function handleFlows(
   userId: string,
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
-  return "Flows agent coming soon. I'll help you build automated email sequences.";
+  return await callAgentEndpoint('/api/agents/flows', message, userId, conversationHistory);
 }
 
 async function handleEmails(
@@ -168,7 +168,7 @@ async function handleEmails(
   userId: string,
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
-  return "Emails agent coming soon. I'll help you write compelling email content.";
+  return await callAgentEndpoint('/api/agents/emails', message, userId, conversationHistory);
 }
 
 async function handleOrchestrator(
@@ -176,5 +176,31 @@ async function handleOrchestrator(
   userId: string,
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
-  return "Orchestrator agent coming soon. I'll coordinate multiple agents to complete complex tasks.";
+  return await callAgentEndpoint('/api/agents/orchestrator', message, userId, conversationHistory);
+}
+
+// Helper function to call agent endpoints
+async function callAgentEndpoint(
+  endpoint: string,
+  message: string,
+  userId: string,
+  conversationHistory?: Array<{ role: string; content: string }>
+): Promise<string> {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, userId, conversationHistory })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Agent endpoint failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.response;
+  } catch (error) {
+    console.error(`Error calling ${endpoint}:`, error);
+    return `I encountered an error processing your request. Please try again.`;
+  }
 }

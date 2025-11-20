@@ -3,8 +3,9 @@
 import { useUser } from '@clerk/nextjs';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
-import { useState } from 'react';
-import { Sparkles, Users, Mail, Workflow, Settings, Info, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Sparkles, Users, Mail, Workflow, Settings, Info, X, Bot, User as UserIcon } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -12,6 +13,12 @@ export default function DashboardPage() {
   const [showInsightInfo, setShowInsightInfo] = useState(null);
   const [conversationHistory, setConversationHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+  
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [conversationHistory]);
   
   const convexUserId = useQuery(
     api.users.getConvexUserId,
@@ -75,6 +82,7 @@ export default function DashboardPage() {
       ]);
     } catch (error) {
       console.error('Error:', error);
+      toast.error('Failed to get response. Please try again.');
       setConversationHistory([
         ...newHistory,
         { 
@@ -96,6 +104,7 @@ export default function DashboardPage() {
   
   return (
     <div className="min-h-screen bg-white">
+      <Toaster position="top-right" />
       {/* Header */}
       <header className="border-b border-gray-200">
         <div className="px-6 py-4 flex items-center justify-between">
@@ -253,27 +262,69 @@ export default function DashboardPage() {
                       </div>
                     </button>
                   </div>
+                  
+                  <div className="mt-8 pt-8 border-t border-gray-200">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">
+                      Complex Tasks (Orchestrator)
+                    </div>
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => handlePromptClick("Create a win-back campaign for high-value customers who haven't purchased in 90 days")}
+                        className="w-full border border-gray-200 rounded-lg p-4 text-left hover:border-gray-300 transition-colors"
+                      >
+                        <div className="text-xs text-gray-900 leading-relaxed">
+                          Create a win-back campaign for high-value customers who haven't purchased in 90 days
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => handlePromptClick("Build a Black Friday campaign for my loyal customers with 25% off")}
+                        className="w-full border border-gray-200 rounded-lg p-4 text-left hover:border-gray-300 transition-colors"
+                      >
+                        <div className="text-xs text-gray-900 leading-relaxed">
+                          Build a Black Friday campaign for my loyal customers with 25% off
+                        </div>
+                      </button>
+                    </div>
+                  </div>
                 </>
               ) : (
                 <div className="space-y-6">
                   {conversationHistory.map((msg, idx) => (
                     <div key={idx} className={msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-                      <div className={`max-w-[80%] ${msg.role === 'user' ? 'bg-black text-white' : 'bg-gray-100 text-gray-900'} rounded-lg p-4`}>
-                        {msg.role === 'assistant' && msg.agent && (
-                          <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
-                            <Sparkles className="w-3 h-3" />
-                            <span>{msg.agent.replace('_', ' ')}</span>
+                      <div className={`max-w-[80%] ${msg.role === 'user' ? 'bg-black text-white' : 'bg-gray-50 border border-gray-200 text-gray-900'} rounded-lg p-4`}>
+                        {msg.role === 'user' ? (
+                          <div className="flex items-start gap-3">
+                            <UserIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                              {msg.content}
+                            </div>
                           </div>
+                        ) : (
+                          <>
+                            {msg.agent && (
+                              <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
+                                <Bot className="w-3 h-3" />
+                                <span className="font-medium">
+                                  {msg.agent === 'customer_analyst' && 'Customer Analyst'}
+                                  {msg.agent === 'segments' && 'Segments Specialist'}
+                                  {msg.agent === 'campaigns' && 'Campaign Manager'}
+                                  {msg.agent === 'emails' && 'Email Copywriter'}
+                                  {msg.agent === 'flows' && 'Flow Builder'}
+                                  {msg.agent === 'orchestrator' && 'Task Orchestrator'}
+                                </span>
+                              </div>
+                            )}
+                            <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                              {msg.content}
+                            </div>
+                          </>
                         )}
-                        <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                          {msg.content}
-                        </div>
                       </div>
                     </div>
                   ))}
                   {isLoading && (
                     <div className="flex justify-start">
-                      <div className="bg-gray-100 rounded-lg p-4">
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <Sparkles className="w-4 h-4 animate-pulse" />
                           <span>Thinking...</span>
@@ -281,6 +332,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
               )}
             </div>
