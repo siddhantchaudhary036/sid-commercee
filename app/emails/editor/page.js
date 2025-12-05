@@ -21,14 +21,6 @@ function EmailEditorContent() {
   const [category, setCategory] = useState("General");
   const [isSaving, setIsSaving] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
-  const [testEmail, setTestEmail] = useState("");
-
-  // Auto-populate user's email
-  useEffect(() => {
-    if (user?.primaryEmailAddress?.emailAddress) {
-      setTestEmail(user.primaryEmailAddress.emailAddress);
-    }
-  }, [user]);
 
   const convexUser = useQuery(
     api.users.getUserByClerkId,
@@ -100,18 +92,6 @@ function EmailEditorContent() {
       return;
     }
 
-    if (!testEmail) {
-      alert("Please enter an email address to send the test to");
-      return;
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(testEmail)) {
-      alert("Please enter a valid email address");
-      return;
-    }
-
     setIsSendingTest(true);
     try {
       const response = await fetch("/api/emails/send-test", {
@@ -122,7 +102,6 @@ function EmailEditorContent() {
         body: JSON.stringify({
           subject,
           htmlContent,
-          testEmail,
         }),
       });
 
@@ -132,7 +111,7 @@ function EmailEditorContent() {
         throw new Error(data.error || "Failed to send test email");
       }
 
-      alert(`Test email sent successfully to ${testEmail}!`);
+      alert(`Test email sent successfully to your email!`);
     } catch (error) {
       console.error("Error sending test email:", error);
       alert("Failed to send test email: " + error.message);
@@ -174,19 +153,9 @@ function EmailEditorContent() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="flex flex-col">
-                  <input
-                    type="email"
-                    value={testEmail}
-                    onChange={(e) => setTestEmail(e.target.value)}
-                    placeholder="Enter your email address"
-                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 w-64"
-                  />
-                  <span className="text-xs text-gray-500 mt-1">Test emails can only be sent to your own email</span>
-                </div>
                 <button
                   onClick={handleSendTest}
-                  disabled={isSendingTest || !subject || !htmlContent || !testEmail}
+                  disabled={isSendingTest || !subject || !htmlContent}
                   className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2"
                 >
                   <Send className="w-4 h-4" />

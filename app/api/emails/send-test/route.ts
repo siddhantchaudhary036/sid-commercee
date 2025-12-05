@@ -4,18 +4,11 @@ import { auth } from '@clerk/nextjs/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { subject, htmlContent, testEmail } = await request.json();
+    const { subject, htmlContent } = await request.json();
 
     if (!subject || !htmlContent) {
       return NextResponse.json(
         { error: 'Subject and HTML content are required' },
-        { status: 400 }
-      );
-    }
-
-    if (!testEmail) {
-      return NextResponse.json(
-        { error: 'Test email address is required' },
         { status: 400 }
       );
     }
@@ -31,23 +24,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's email from Clerk
-    const clerkClient = await import('@clerk/nextjs/server').then(m => m.clerkClient);
-    const user = await clerkClient.users.getUser(userId);
+    const { clerkClient } = await import('@clerk/nextjs/server');
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
     
-    const userEmail = user.emailAddresses.find(email => email.id === user.primaryEmailAddressId)?.emailAddress;
+    const userEmail = user.emailAddresses.find((email: any) => email.id === user.primaryEmailAddressId)?.emailAddress;
 
     if (!userEmail) {
       return NextResponse.json(
         { error: 'Unable to verify user email' },
         { status: 400 }
-      );
-    }
-
-    // Verify that testEmail matches user's email
-    if (testEmail.toLowerCase() !== userEmail.toLowerCase()) {
-      return NextResponse.json(
-        { error: 'For security reasons, test emails can only be sent to your own email address' },
-        { status: 403 }
       );
     }
 
@@ -91,10 +77,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send email
+    // Send email to user's own email address
     const info = await transporter.sendMail({
       from: `"${senderName || 'Test Email'}" <${senderEmail}>`,
-      to: testEmail,
+      to: userEmail,
       subject: subject,
       html: cleanHtml,
     });
