@@ -230,6 +230,11 @@ function TriggerConfig({ config, setConfig, segments }) {
 }
 
 function EmailConfig({ config, setConfig, selectedTemplate }) {
+  const segments = useQuery(
+    api.segments.list,
+    config.userId ? { userId: config.userId } : "skip"
+  );
+
   return (
     <div className="space-y-4">
       <div>
@@ -245,6 +250,42 @@ function EmailConfig({ config, setConfig, selectedTemplate }) {
           placeholder="e.g., Welcome Email"
           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
         />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-2">
+          Send to Segment <span className="text-gray-400">*</span>
+        </label>
+        {config.userId ? (
+          <>
+            <select
+              value={config.segmentId || ""}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  segmentId: e.target.value,
+                  segmentName:
+                    segments?.find((s) => s._id === e.target.value)?.name || "",
+                })
+              }
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+            >
+              <option value="">Choose a segment...</option>
+              {segments?.map((segment) => (
+                <option key={segment._id} value={segment._id}>
+                  {segment.name} ({segment.customerCount || 0} customers)
+                </option>
+              ))}
+            </select>
+            <div className="text-xs text-gray-500 mt-1">
+              Select which customer segment will receive this email
+            </div>
+          </>
+        ) : (
+          <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded border border-gray-200">
+            Save the flow first to select a segment
+          </div>
+        )}
       </div>
 
       <div>
