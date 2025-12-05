@@ -140,7 +140,13 @@ export default defineSchema({
       v.object({
         field: v.string(),
         operator: v.string(), // "=", ">", "<", ">=", "<=", "!=", "contains", "in"
-        value: v.any(),
+        value: v.union(
+          v.string(),
+          v.number(),
+          v.boolean(),
+          v.array(v.string()),
+          v.array(v.number())
+        ),
       })
     ),
     
@@ -192,7 +198,20 @@ export default defineSchema({
     
     // A/B TESTING
     isAbTest: v.optional(v.boolean()),
-    abTestVariants: v.optional(v.array(v.any())),
+    abTestVariants: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          subject: v.string(),
+          content: v.string(),
+          percentage: v.number(), // 0-100
+          sentCount: v.optional(v.number()),
+          openRate: v.optional(v.number()),
+          clickRate: v.optional(v.number()),
+          conversionRate: v.optional(v.number()),
+        })
+      )
+    ),
     
     // AI METADATA
     aiGenerated: v.boolean(),
@@ -212,31 +231,6 @@ export default defineSchema({
     description: v.optional(v.string()),
     status: v.string(), // "draft", "active", "paused"
     
-    // TRIGGER CONFIGURATION
-    triggerType: v.string(), // "segment_added", "tag_added", "date", "manual"
-    triggerConfig: v.any(), // { segmentId: "seg_123" } or other trigger data
-    
-    // FLOW DEFINITION (React Flow canvas data - stores visual builder state)
-    flowDefinition: v.object({
-      nodes: v.array(
-        v.object({
-          id: v.string(),
-          type: v.string(), // "trigger", "email", "delay", "condition"
-          data: v.any(), // Node-specific data
-          position: v.object({ x: v.float64(), y: v.float64() }),
-          measured: v.optional(v.object({ width: v.float64(), height: v.float64() })), // ReactFlow internal
-        })
-      ),
-      edges: v.array(
-        v.object({
-          id: v.string(),
-          source: v.string(),
-          target: v.string(),
-          sourceHandle: v.optional(v.string()), // For condition nodes: "yes"/"no"
-        })
-      ),
-    }),
-    
     // SIMULATED PERFORMANCE (Fake metrics for AI insights)
     totalRecipients: v.optional(v.number()), // How many people "went through"
     completionRate: v.optional(v.number()), // Percentage who finished flow
@@ -250,6 +244,70 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_status", ["status"]),
+
+  // Flow nodes - discriminated union for type safety
+  flowNodes: defineTable({
+    flowId: v.id("flows"),
+    nodeId: v.string(), // Unique within flow (e.g., "trigger-1", "email-2")
+    
+    // Node type discriminator
+    type: v.string(), // "trigger", "email", "delay", "condition"
+    
+    // Type-specific data (discriminated union)
+    // TRIGGER NODE
+    triggerType: v.optional(v.string()), // "segment_added", "manual", "date"
+    segmentId: v.optional(v.id("segments")),
+    segmentName: v.optional(v.string()),
+    
+    // EMAIL NODE
+    emailTemplateId: v.optional(v.id("emailTemplates")),
+    emailSubject: v.optional(v.string()),
+    emailName: v.optional(v.string()), // Display name in flow
+    
+    // DELAY NODE
+    delayDays: v.optional(v.number()),
+    delayHours: v.optional(v.number()),
+    delayName: v.optional(v.string()),
+    
+    // CONDITION NODE
+    conditionType: v.optional(v.string()), // "email_opened", "email_clicked", "purchased"
+    conditionName: v.optional(v.string()),
+    
+    // React Flow positioning
+    positionX: v.float64(),
+    positionY: v.float64(),
+    
+    // React Flow internal state (optional)
+    width: v.optional(v.float64()),
+    height: v.optional(v.float64()),
+    
+    userId: v.id("users"),
+    createdAt: v.string(),
+  })
+    .index("by_flow", ["flowId"])
+    .index("by_flow_and_node", ["flowId", "nodeId"]),
+
+  // Flow edges - connections between nodes
+  flowEdges: defineTable({
+    flowId: v.id("flows"),
+    edgeId: v.string(), // Unique within flow
+    
+    sourceNodeId: v.string(), // References flowNodes.nodeId
+    targetNodeId: v.string(), // References flowNodes.nodeId
+    
+    // For condition nodes: which branch ("yes", "no")
+    sourceHandle: v.optional(v.string()),
+    
+    // Styling (optional, for React Flow)
+    animated: v.optional(v.boolean()),
+    label: v.optional(v.string()),
+    
+    userId: v.id("users"),
+    createdAt: v.string(),
+  })
+    .index("by_flow", ["flowId"])
+    .index("by_source", ["flowId", "sourceNodeId"])
+    .index("by_target", ["flowId", "targetNodeId"]),
 
   // ============ EMAIL TEMPLATES ============
   emailTemplates: defineTable({
@@ -299,7 +357,31 @@ export default defineSchema({
       loyalCount: v.number(),
       atRiskCount: v.number(),
       
-      customMetrics: v.optional(v.any()),
+      customMetrics: v.optional(
+        v.object({
+          // Extensible metrics with known types
+          productCategoryRevenue: v.optional(v.array(
+            v.object({
+              category: v.string(),
+              revenue: v.number(),
+            })
+          )),
+          topProducts: v.optional(v.array(
+            v.object({
+              productId: v.string(),
+              name: v.string(),
+              sales: v.number(),
+            })
+          )),
+          geographicBreakdown: v.optional(v.array(
+            v.object({
+              region: v.string(),
+              customerCount: v.number(),
+              revenue: v.number(),
+            })
+          )),
+        })
+      ),
     }),
     
     createdAt: v.string(),
@@ -394,11 +476,22 @@ export default defineSchema({
         role: v.string(), // "user", "assistant"
         content: v.string(),
         timestamp: v.string(),
+        reasoning: v.optional(v.string()), // AI reasoning for workflow steps
         functionCalls: v.optional(
           v.array(
             v.object({
               name: v.string(),
-              result: v.any(),
+              result: v.union(
+                v.string(),
+                v.number(),
+                v.boolean(),
+                v.null(),
+                v.object({
+                  success: v.boolean(),
+                  message: v.optional(v.string()),
+                  data: v.optional(v.string()), // JSON stringified data
+                })
+              ),
             })
           )
         ),

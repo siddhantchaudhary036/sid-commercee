@@ -1,0 +1,13 @@
+3. ✅ DONE - Removed orchestrator, router now calls specialists in sequence with context passing
+4. ✅ DONE - Refactored flows schema: separate flowNodes and flowEdges tables with type-safe discriminated unions
+5. ✅ DONE - Updated FlowEditor to use new schema format (convert to/from React Flow format)
+6. ✅ DONE - Updated AI flows agent to create nodes/edges in new format
+7. ✅ DONE - Ran `npx convex dev` - schema synced successfully
+8. 🔄 NEXT - Test flow creation and fix node connection issues
+
+✅ DONE - Fixed security loopholes: Removed all v.any() usage from schema
+  - Segment conditions now use v.union() with specific types (string, number, boolean, arrays)
+  - A/B test variants now have proper structure validation
+  - Custom metrics now have defined structure with optional fields
+  - AI conversation function call results now use v.union() with specific types
+

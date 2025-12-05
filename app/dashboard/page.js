@@ -1,14 +1,17 @@
 "use client";
 
-import { useUser } from '@clerk/nextjs';
+import { useUser, useClerk } from '@clerk/nextjs';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useState, useRef, useEffect } from 'react';
-import { Sparkles, Users, Mail, Workflow, Settings, Info, X, Bot, User as UserIcon } from 'lucide-react';
+import { Sparkles, Users, Mail, Workflow, Settings, Info, X, Bot, User as UserIcon, LogOut } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const { user } = useUser();
+  const { signOut } = useClerk();
+  const router = useRouter();
   const [message, setMessage] = useState('');
   const [showInsightInfo, setShowInsightInfo] = useState(null);
   const [conversationHistory, setConversationHistory] = useState([]);
@@ -17,6 +20,11 @@ export default function DashboardPage() {
   const messagesEndRef = useRef(null);
   
   const saveConversation = useMutation(api.aiConversations.saveConversation);
+  
+  const handleLogout = async () => {
+    await signOut();
+    router.push('/');
+  };
   
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -69,7 +77,8 @@ export default function DashboardPage() {
         body: JSON.stringify({
           message: userMessage,
           userId: convexUserId,
-          conversationHistory: conversationHistory.slice(-6) // Last 3 exchanges
+          conversationHistory: conversationHistory.slice(-6), // Last 3 exchanges
+          stream: true
         })
       });
       
@@ -77,16 +86,82 @@ export default function DashboardPage() {
         throw new Error('Failed to get response');
       }
       
-      const data = await response.json();
+      // Handle streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let finalResponse = '';
+      let workflowSteps = [];
       
-      // Add agent response to history
+      // Add a placeholder message that we'll update
+      setConversationHistory([
+        ...newHistory,
+        { 
+          role: 'assistant', 
+          content: 'Planning workflow...',
+          timestamp: new Date().toISOString()
+        }
+      ]);
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.type === 'plan') {
+                workflowSteps = data.steps;
+                const stepsList = data.steps.join(' → ');
+                finalResponse = `**Executing workflow:** ${stepsList}\n\n`;
+                setConversationHistory([
+                  ...newHistory,
+                  { 
+                    role: 'assistant', 
+                    content: finalResponse,
+                    timestamp: new Date().toISOString()
+                  }
+                ]);
+              } else if (data.type === 'step_start') {
+                finalResponse += `\n**Step ${data.step}/${data.total}:** Running ${data.agent}...`;
+                setConversationHistory([
+                  ...newHistory,
+                  { 
+                    role: 'assistant', 
+                    content: finalResponse,
+                    timestamp: new Date().toISOString()
+                  }
+                ]);
+              } else if (data.type === 'step_complete') {
+                finalResponse += ` ✅\n`;
+                setConversationHistory([
+                  ...newHistory,
+                  { 
+                    role: 'assistant', 
+                    content: finalResponse,
+                    timestamp: new Date().toISOString()
+                  }
+                ]);
+              } else if (data.type === 'complete') {
+                finalResponse += '\n\n---\n\n**All steps completed successfully!**';
+              }
+            } catch (e) {
+              console.error('Error parsing SSE:', e);
+            }
+          }
+        }
+      }
+      
+      // Final update
       const updatedHistory = [
         ...newHistory,
         { 
           role: 'assistant', 
-          content: data.response,
-          agent: data.agent,
-          reasoning: data.reasoning,
+          content: finalResponse || 'Workflow completed.',
           timestamp: new Date().toISOString()
         }
       ];
@@ -143,6 +218,13 @@ export default function DashboardPage() {
             <span className="text-xs text-gray-500">
               {user?.emailAddresses[0]?.emailAddress}
             </span>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
           </div>
         </div>
       </header>

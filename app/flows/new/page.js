@@ -23,24 +23,23 @@ export default function NewFlowPage() {
     );
   }
 
-  // Initial flow state for new flow
+  // Initial flow state for new flow (new schema format)
   const initialFlow = {
     name: "Untitled Flow",
     description: "",
     status: "draft",
-    triggerType: "segment_added",
-    triggerConfig: {},
-    flowDefinition: {
-      nodes: [
-        {
-          id: "trigger-1",
-          type: "trigger",
-          data: { label: "Trigger", triggerType: "segment_added" },
-          position: { x: 250, y: 50 },
-        },
-      ],
-      edges: [],
-    },
+    nodes: [
+      {
+        nodeId: "trigger-1",
+        type: "trigger",
+        triggerType: "segment_added",
+        segmentId: undefined,
+        segmentName: undefined,
+        positionX: 250,
+        positionY: 50,
+      },
+    ],
+    edges: [],
   };
 
   return (

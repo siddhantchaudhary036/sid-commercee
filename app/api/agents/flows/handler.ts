@@ -152,6 +152,9 @@ async function buildFlow(
     const emailTemplateIds = [];
     
     for (const email of plan.emails) {
+      console.log(`📝 [FLOWS AGENT] Generating email ${email.sequence}/${plan.emails.length}...`);
+      steps.push(`⏳ Generating email ${email.sequence}...`);
+      
       const emailModel = genAI.getGenerativeModel({
         model: "gemini-2.5-flash"
       });
@@ -184,6 +187,8 @@ BODY:
       const emailResult = await emailModel.generateContent(emailPrompt);
       const emailContent = emailResult.response.text();
       
+      console.log(`✅ [FLOWS AGENT] Email ${email.sequence} content generated`);
+      
       // Extract subject and body
       const subjectMatch = emailContent.match(/SUBJECT:\s*(.+)/i);
       const subject = subjectMatch ? subjectMatch[1].trim() : email.subject;
@@ -215,6 +220,8 @@ BODY:
         sequence: email.sequence
       });
       
+      // Remove the "generating" message and add the completed one
+      steps.pop();
       steps.push(`✓ Email ${email.sequence}: "${subject}"`);
       if (email.delayDays > 0) {
         steps.push(`  → Send ${email.delayDays} day${email.delayDays > 1 ? 's' : ''} after previous email`);
@@ -223,25 +230,32 @@ BODY:
     
     steps.push('');
 
-    // Step 3: Build flow definition (nodes and edges)
+    // Step 3: Build flow definition (nodes and edges in new schema format)
     steps.push(`🔧 **Step 3: Assembling Flow**`);
     
     const nodes = [];
     const edges = [];
     
-    // Trigger node
-    const triggerNode = {
-      id: 'trigger-1',
+    // Trigger node (new schema format)
+    nodes.push({
+      nodeId: 'trigger-1',
       type: 'trigger',
-      data: {
-        name: 'Flow Trigger',
-        triggerType: plan.triggerType,
-        segmentId: segmentId || null,
-        segmentName: segmentName || 'Manual'
-      },
-      position: { x: 250, y: 50 }
-    };
-    nodes.push(triggerNode);
+      triggerType: plan.triggerType,
+      segmentId: segmentId || undefined,
+      segmentName: segmentName || 'Manual',
+      emailTemplateId: undefined,
+      emailSubject: undefined,
+      emailName: undefined,
+      delayDays: undefined,
+      delayHours: undefined,
+      delayName: undefined,
+      conditionType: undefined,
+      conditionName: undefined,
+      positionX: 250,
+      positionY: 50,
+      width: undefined,
+      height: undefined,
+    });
     
     let previousNodeId = 'trigger-1';
     let yPosition = 200;
@@ -254,20 +268,32 @@ BODY:
       if (i > 0 && emailData.delayDays > 0) {
         const delayNodeId = `delay-${i}`;
         nodes.push({
-          id: delayNodeId,
+          nodeId: delayNodeId,
           type: 'delay',
-          data: {
-            name: `Wait ${emailData.delayDays} day${emailData.delayDays > 1 ? 's' : ''}`,
-            delayDays: emailData.delayDays,
-            delayHours: 0
-          },
-          position: { x: 250, y: yPosition }
+          triggerType: undefined,
+          segmentId: undefined,
+          segmentName: undefined,
+          emailTemplateId: undefined,
+          emailSubject: undefined,
+          emailName: undefined,
+          delayDays: emailData.delayDays,
+          delayHours: 0,
+          delayName: `Wait ${emailData.delayDays} day${emailData.delayDays > 1 ? 's' : ''}`,
+          conditionType: undefined,
+          conditionName: undefined,
+          positionX: 250,
+          positionY: yPosition,
+          width: undefined,
+          height: undefined,
         });
         
         edges.push({
-          id: `edge-${previousNodeId}-${delayNodeId}`,
-          source: previousNodeId,
-          target: delayNodeId
+          edgeId: `edge-${previousNodeId}-${delayNodeId}`,
+          sourceNodeId: previousNodeId,
+          targetNodeId: delayNodeId,
+          sourceHandle: undefined,
+          animated: undefined,
+          label: undefined,
         });
         
         previousNodeId = delayNodeId;
@@ -277,20 +303,32 @@ BODY:
       // Add email node
       const emailNodeId = `email-${i + 1}`;
       nodes.push({
-        id: emailNodeId,
+        nodeId: emailNodeId,
         type: 'email',
-        data: {
-          name: `Email ${emailData.sequence}`,
-          emailTemplateId: emailData.templateId,
-          subject: emailData.subject
-        },
-        position: { x: 250, y: yPosition }
+        triggerType: undefined,
+        segmentId: undefined,
+        segmentName: undefined,
+        emailTemplateId: emailData.templateId,
+        emailSubject: emailData.subject,
+        emailName: `Email ${emailData.sequence}`,
+        delayDays: undefined,
+        delayHours: undefined,
+        delayName: undefined,
+        conditionType: undefined,
+        conditionName: undefined,
+        positionX: 250,
+        positionY: yPosition,
+        width: undefined,
+        height: undefined,
       });
       
       edges.push({
-        id: `edge-${previousNodeId}-${emailNodeId}`,
-        source: previousNodeId,
-        target: emailNodeId
+        edgeId: `edge-${previousNodeId}-${emailNodeId}`,
+        sourceNodeId: previousNodeId,
+        targetNodeId: emailNodeId,
+        sourceHandle: undefined,
+        animated: undefined,
+        label: undefined,
       });
       
       previousNodeId = emailNodeId;
@@ -304,9 +342,8 @@ BODY:
     // Step 4: Create the flow
     steps.push(`💾 **Step 4: Saving Flow**`);
     
-    console.log('🔧 [FLOWS AGENT] Creating flow with definition:', {
+    console.log('🔧 [FLOWS AGENT] Creating flow with nodes/edges:', {
       name: plan.flowName,
-      triggerType: plan.triggerType,
       nodeCount: nodes.length,
       edgeCount: edges.length
     });
@@ -315,15 +352,8 @@ BODY:
       userId: userId as any,
       name: plan.flowName,
       description: plan.description,
-      triggerType: plan.triggerType,
-      triggerConfig: {
-        segmentId: segmentId || null,
-        segmentName: segmentName || 'Manual'
-      },
-      flowDefinition: {
-        nodes,
-        edges
-      }
+      nodes,
+      edges
     });
     
     console.log('✅ [FLOWS AGENT] Flow created with ID:', flowId);

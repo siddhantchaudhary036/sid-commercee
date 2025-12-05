@@ -23,9 +23,9 @@ export function FlowCard({ flow, userId }) {
   const [isToggling, setIsToggling] = useState(false);
 
   const statusColors = {
-    active: "bg-green-100 text-green-800 border-green-300",
-    paused: "bg-yellow-100 text-yellow-800 border-yellow-300",
-    draft: "bg-gray-100 text-gray-700 border-gray-300",
+    active: "bg-gray-900 text-white border-gray-900",
+    paused: "bg-gray-100 text-gray-700 border-gray-300",
+    draft: "bg-gray-50 text-gray-600 border-gray-200",
   };
 
   const triggerTypeLabels = {
@@ -142,7 +142,7 @@ export function FlowCard({ flow, userId }) {
                   setShowMenu(false);
                   setShowDeleteModal(true);
                 }}
-                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
                 Delete
@@ -160,7 +160,7 @@ export function FlowCard({ flow, userId }) {
       {/* Flow Preview - Mini Node Diagram */}
       <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
         <div className="flex items-center gap-2 overflow-x-auto">
-          {flow.flowDefinition.nodes.map((node, index) => (
+          {flow.flowDefinition?.nodes?.map((node, index) => (
             <div key={node.id} className="flex items-center gap-2">
               <div
                 className="flex items-center justify-center w-8 h-8 bg-white border border-gray-300 rounded text-gray-600"
@@ -173,7 +173,7 @@ export function FlowCard({ flow, userId }) {
               )}
             </div>
           ))}
-          {flow.flowDefinition.nodes.length === 0 && (
+          {(!flow.flowDefinition?.nodes || flow.flowDefinition.nodes.length === 0) && (
             <div className="text-xs text-gray-500">No steps configured</div>
           )}
         </div>
@@ -222,8 +222,8 @@ export function FlowCard({ flow, userId }) {
           disabled={isToggling}
           className={`px-3 py-1.5 text-xs rounded-lg ${
             flow.status === "active"
-              ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-              : "bg-green-100 text-green-800 hover:bg-green-200"
+              ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              : "bg-gray-900 text-white hover:bg-gray-800"
           } disabled:opacity-50`}
         >
           {isToggling
@@ -270,7 +270,7 @@ function DeleteFlowModal({ flow, onClose }) {
     <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full">
         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-red-600" />
+          <AlertTriangle className="w-5 h-5 text-gray-600" />
           Delete Flow?
         </h2>
 
@@ -279,11 +279,11 @@ function DeleteFlowModal({ flow, onClose }) {
           <span className="font-medium">{flow.name}</span>?
         </p>
 
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-          <p className="text-xs text-red-800 font-medium mb-2">
+        <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4">
+          <p className="text-xs text-gray-900 font-medium mb-2">
             This action cannot be undone.
           </p>
-          <p className="text-xs text-red-700">
+          <p className="text-xs text-gray-700">
             All flow data and analytics will be permanently removed.
           </p>
         </div>
@@ -297,7 +297,7 @@ function DeleteFlowModal({ flow, onClose }) {
             type="text"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
             placeholder="DELETE"
           />
         </div>
@@ -313,7 +313,7 @@ function DeleteFlowModal({ flow, onClose }) {
           <button
             onClick={handleDelete}
             disabled={confirmText !== "DELETE" || isDeleting}
-            className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isDeleting ? "Deleting..." : "Delete Forever"}
           </button>

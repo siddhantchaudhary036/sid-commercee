@@ -5,7 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Save, Eye, Code } from "lucide-react";
+import { ArrowLeft, Save, Eye, Code, Send } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 
 function EmailEditorContent() {
@@ -20,6 +20,15 @@ function EmailEditorContent() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("General");
   const [isSaving, setIsSaving] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+
+  // Auto-populate user's email
+  useEffect(() => {
+    if (user?.primaryEmailAddress?.emailAddress) {
+      setTestEmail(user.primaryEmailAddress.emailAddress);
+    }
+  }, [user]);
 
   const convexUser = useQuery(
     api.users.getUserByClerkId,
@@ -85,6 +94,53 @@ function EmailEditorContent() {
     }
   };
 
+  const handleSendTest = async () => {
+    if (!subject || !htmlContent) {
+      alert("Please add a subject and HTML content before sending a test email");
+      return;
+    }
+
+    if (!testEmail) {
+      alert("Please enter an email address to send the test to");
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(testEmail)) {
+      alert("Please enter a valid email address");
+      return;
+    }
+
+    setIsSendingTest(true);
+    try {
+      const response = await fetch("/api/emails/send-test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          subject,
+          htmlContent,
+          testEmail,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send test email");
+      }
+
+      alert(`Test email sent successfully to ${testEmail}!`);
+    } catch (error) {
+      console.error("Error sending test email:", error);
+      alert("Failed to send test email: " + error.message);
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
   if (!user || !convexUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -117,14 +173,34 @@ function EmailEditorContent() {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={handleSave}
-                disabled={isSaving || !name || !subject || !htmlContent}
-                className="px-4 py-2 text-sm bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                {isSaving ? "Saving..." : "Save Template"}
-              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col">
+                  <input
+                    type="email"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    placeholder="Enter your email address"
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 w-64"
+                  />
+                  <span className="text-xs text-gray-500 mt-1">Test emails can only be sent to your own email</span>
+                </div>
+                <button
+                  onClick={handleSendTest}
+                  disabled={isSendingTest || !subject || !htmlContent || !testEmail}
+                  className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2"
+                >
+                  <Send className="w-4 h-4" />
+                  {isSendingTest ? "Sending..." : "Send Test Email"}
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || !name || !subject || !htmlContent}
+                  className="px-4 py-2 text-sm bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  {isSaving ? "Saving..." : "Save Template"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -233,10 +309,21 @@ export default function EmailEditorPage() {
 }
 
 function EmailPreview({ html }) {
+  // Extract body content from full HTML document
+  const getBodyContent = (htmlString) => {
+    const bodyMatch = htmlString.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    if (bodyMatch) {
+      return bodyMatch[1];
+    }
+    return htmlString;
+  };
+
+  const bodyContent = getBodyContent(html);
+
   return (
     <div
       className="p-6"
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: bodyContent }}
       style={{
         fontFamily: 'system-ui, -apple-system, sans-serif',
         lineHeight: '1.6',

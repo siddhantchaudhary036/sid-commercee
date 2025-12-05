@@ -17,18 +17,15 @@ import "@xyflow/react/dist/style.css";
 import {
   ArrowLeft,
   Save,
-  Settings,
   ChevronDown,
   ChevronUp,
   Mail,
   Clock,
   GitBranch,
   Zap,
-  Tag,
-  Calendar,
-  X,
 } from "lucide-react";
 import CustomNode from "./CustomNode";
+import FlowRightPanel from "./FlowRightPanel";
 
 const nodeTypes = {
   trigger: CustomNode,
@@ -38,12 +35,56 @@ const nodeTypes = {
 };
 
 export default function FlowEditor({ flow, userId, isNew, onBack }) {
-  const [nodes, setNodes, onNodesChange] = useNodesState(
-    flow.flowDefinition.nodes
-  );
-  const [edges, setEdges, onEdgesChange] = useEdgesState(
-    flow.flowDefinition.edges
-  );
+  // Convert from new schema format to React Flow format
+  const initialNodes = flow.nodes
+    ? flow.nodes.map((node) => ({
+        id: node.nodeId,
+        type: node.type,
+        position: { x: node.positionX, y: node.positionY },
+        data: {
+          label: node.emailName || node.delayName || node.conditionName || node.type,
+          nodeType: node.type,
+          userId: userId,
+          // Trigger node data
+          triggerType: node.triggerType,
+          segmentId: node.segmentId,
+          segmentName: node.segmentName,
+          // Email node data
+          emailTemplateId: node.emailTemplateId,
+          subject: node.emailSubject,
+          name: node.emailName,
+          // Delay node data
+          delayDays: node.delayDays,
+          delayHours: node.delayHours,
+          // Condition node data
+          conditionType: node.conditionType,
+        },
+        measured: node.width && node.height ? { width: node.width, height: node.height } : undefined,
+      }))
+    : [
+        {
+          id: "trigger-1",
+          type: "trigger",
+          data: { label: "Trigger", triggerType: "segment_added" },
+          position: { x: 250, y: 50 },
+        },
+      ];
+
+  const initialEdges = flow.edges
+    ? flow.edges.map((edge) => ({
+        id: edge.edgeId,
+        source: edge.sourceNodeId,
+        target: edge.targetNodeId,
+        sourceHandle: edge.sourceHandle,
+        animated: edge.animated,
+        label: edge.label,
+        markerEnd: { type: MarkerType.ArrowClosed },
+        style: { stroke: "#000" },
+      }))
+    : [];
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [flowName, setFlowName] = useState(flow.name);
   const [flowDescription, setFlowDescription] = useState(
     flow.description || ""
@@ -53,9 +94,13 @@ export default function FlowEditor({ flow, userId, isNew, onBack }) {
   const [isSaving, setIsSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
   const [showTestMode, setShowTestMode] = useState(false);
+  const [selectedNode, setSelectedNode] = useState(
+    initialNodes.length > 0 ? initialNodes[0] : null
+  );
 
   const createFlow = useMutation(api.flows.create);
   const updateFlow = useMutation(api.flows.update);
+  const updateNodesAndEdges = useMutation(api.flows.updateNodesAndEdges);
 
   const saveTimeoutRef = useRef(null);
 
@@ -86,12 +131,48 @@ export default function FlowEditor({ flow, userId, isNew, onBack }) {
 
   const handleAutoSave = async () => {
     try {
+      // Update flow metadata
       await updateFlow({
         id: flow._id,
         name: flowName,
         description: flowDescription,
         status: flowStatus,
-        flowDefinition: { nodes, edges },
+      });
+      
+      // Convert and update nodes/edges
+      const schemaNodes = nodes.map((node) => ({
+        nodeId: node.id,
+        type: node.type,
+        triggerType: node.data?.triggerType,
+        segmentId: node.data?.segmentId,
+        segmentName: node.data?.segmentName,
+        emailTemplateId: node.data?.emailTemplateId,
+        emailSubject: node.data?.subject,
+        emailName: node.data?.name || node.data?.label,
+        delayDays: node.data?.delayDays || node.data?.duration,
+        delayHours: node.data?.delayHours || 0,
+        delayName: node.data?.name || node.data?.label,
+        conditionType: node.data?.conditionType,
+        conditionName: node.data?.name || node.data?.label,
+        positionX: node.position.x,
+        positionY: node.position.y,
+        width: node.measured?.width,
+        height: node.measured?.height,
+      }));
+
+      const schemaEdges = edges.map((edge) => ({
+        edgeId: edge.id,
+        sourceNodeId: edge.source,
+        targetNodeId: edge.target,
+        sourceHandle: edge.sourceHandle,
+        animated: edge.animated,
+        label: edge.label,
+      }));
+      
+      await updateNodesAndEdges({
+        flowId: flow._id,
+        nodes: schemaNodes,
+        edges: schemaEdges,
       });
     } catch (error) {
       console.error("Auto-save failed:", error);
@@ -199,16 +280,40 @@ export default function FlowEditor({ flow, userId, isNew, onBack }) {
       return;
     }
 
-    // Get trigger node config
-    const triggerNode = nodes.find((n) => n.type === "trigger");
-    const triggerType = triggerNode?.data?.triggerType || "segment_added";
-    const triggerConfig = {
-      segmentId: triggerNode?.data?.segmentId,
-      segmentName: triggerNode?.data?.segmentName,
-      tagName: triggerNode?.data?.tagName,
-      triggerDate: triggerNode?.data?.triggerDate,
-      triggerTime: triggerNode?.data?.triggerTime,
-    };
+    // Convert React Flow format to new schema format
+    const schemaNodes = nodes.map((node) => ({
+      nodeId: node.id,
+      type: node.type,
+      // Trigger node fields
+      triggerType: node.data?.triggerType,
+      segmentId: node.data?.segmentId,
+      segmentName: node.data?.segmentName,
+      // Email node fields
+      emailTemplateId: node.data?.emailTemplateId,
+      emailSubject: node.data?.subject,
+      emailName: node.data?.name || node.data?.label,
+      // Delay node fields
+      delayDays: node.data?.delayDays || node.data?.duration,
+      delayHours: node.data?.delayHours || 0,
+      delayName: node.data?.name || node.data?.label,
+      // Condition node fields
+      conditionType: node.data?.conditionType,
+      conditionName: node.data?.name || node.data?.label,
+      // Position
+      positionX: node.position.x,
+      positionY: node.position.y,
+      width: node.measured?.width,
+      height: node.measured?.height,
+    }));
+
+    const schemaEdges = edges.map((edge) => ({
+      edgeId: edge.id,
+      sourceNodeId: edge.source,
+      targetNodeId: edge.target,
+      sourceHandle: edge.sourceHandle,
+      animated: edge.animated,
+      label: edge.label,
+    }));
 
     setIsSaving(true);
     try {
@@ -217,22 +322,27 @@ export default function FlowEditor({ flow, userId, isNew, onBack }) {
           userId,
           name: flowName.trim(),
           description: flowDescription.trim() || undefined,
-          triggerType,
-          triggerConfig,
-          flowDefinition: { nodes, edges },
+          nodes: schemaNodes,
+          edges: schemaEdges,
         });
         alert("✓ Flow created successfully!");
         window.location.href = `/flows/${flowId}/edit`;
       } else {
+        // Update flow metadata
         await updateFlow({
           id: flow._id,
           name: flowName.trim(),
           description: flowDescription.trim() || undefined,
           status: flowStatus,
-          triggerType,
-          triggerConfig,
-          flowDefinition: { nodes, edges },
         });
+        
+        // Update nodes and edges separately
+        await updateNodesAndEdges({
+          flowId: flow._id,
+          nodes: schemaNodes,
+          edges: schemaEdges,
+        });
+        
         alert("✓ Flow saved successfully!");
       }
     } catch (error) {
@@ -273,19 +383,41 @@ export default function FlowEditor({ flow, userId, isNew, onBack }) {
         data: {
           label: type.charAt(0).toUpperCase() + type.slice(1),
           nodeType: type,
-          userId: userId, // Pass userId for fetching segments
+          userId: userId,
         },
       };
 
       setNodes((nds) => nds.concat(newNode));
+      setSelectedNode(newNode);
     },
     [setNodes, nodes, userId]
   );
 
+  const handleNodeClick = useCallback((event, node) => {
+    setSelectedNode(node);
+  }, []);
+
+  const handlePaneClick = useCallback(() => {
+    setSelectedNode(null);
+  }, []);
+
+  const handleUpdateNode = useCallback((nodeId, newData) => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === nodeId ? { ...node, data: newData } : node
+      )
+    );
+  }, [setNodes]);
+
+  const handleDeleteNode = useCallback((nodeId) => {
+    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+    setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+  }, [setNodes, setEdges]);
+
   return (
     <div className="flex h-screen bg-white">
       {/* Left Sidebar */}
-      <div className="w-80 border-r border-gray-200 flex flex-col">
+      <div className="w-80 border-r border-gray-200 flex flex-col shrink-0">
         {/* Header */}
         <div className="p-6 border-b border-gray-200">
           <button
@@ -342,7 +474,7 @@ export default function FlowEditor({ flow, userId, isNew, onBack }) {
                 {validationErrors.map((error, index) => (
                   <div
                     key={index}
-                    className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800"
+                    className="p-3 bg-gray-100 border border-gray-300 rounded-lg text-xs text-gray-900"
                   >
                     {error}
                   </div>
@@ -409,11 +541,15 @@ export default function FlowEditor({ flow, userId, isNew, onBack }) {
       </div>
 
       {/* Canvas Area */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative flex">
+        <div className="flex-1 relative">
         {/* Action Buttons */}
         <div className="absolute top-4 right-4 z-10 flex items-center gap-3">
           <button
-            onClick={() => setShowTestMode(true)}
+            onClick={() => {
+              setShowTestMode(true);
+              setSelectedNode(null);
+            }}
             disabled={validationErrors.length > 0}
             className="px-4 py-2 text-sm border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -429,38 +565,49 @@ export default function FlowEditor({ flow, userId, isNew, onBack }) {
           </button>
         </div>
 
-        {/* React Flow Canvas */}
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          nodeTypes={nodeTypes}
-          fitView
-          className="bg-gray-50"
-        >
-          <Controls />
-          <MiniMap
-            nodeColor={(node) => {
-              switch (node.type) {
-                case "trigger":
-                  return "#fbbf24";
-                case "email":
-                  return "#60a5fa";
-                case "delay":
-                  return "#a78bfa";
-                case "condition":
-                  return "#34d399";
-                default:
-                  return "#9ca3af";
-              }
-            }}
-          />
-          <Background variant="dots" gap={12} size={1} />
-        </ReactFlow>
+          {/* React Flow Canvas */}
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onNodeClick={handleNodeClick}
+            onPaneClick={handlePaneClick}
+            nodeTypes={nodeTypes}
+            fitView
+            className="bg-gray-50"
+          >
+            <Controls />
+            <MiniMap
+              nodeColor={(node) => {
+                switch (node.type) {
+                  case "trigger":
+                    return "#6b7280";
+                  case "email":
+                    return "#ffffff";
+                  case "delay":
+                    return "#e5e7eb";
+                  case "condition":
+                    return "#9ca3af";
+                  default:
+                    return "#9ca3af";
+                }
+              }}
+            />
+            <Background variant="dots" gap={12} size={1} />
+          </ReactFlow>
+        </div>
+
+        {/* Right Panel */}
+        <FlowRightPanel
+          selectedNode={selectedNode}
+          onUpdateNode={handleUpdateNode}
+          onDeleteNode={handleDeleteNode}
+          onClose={() => setSelectedNode(null)}
+        />
       </div>
 
       {/* Test Mode Modal */}
@@ -605,8 +752,8 @@ function TestModeModal({ nodes, edges, userId, onClose }) {
             </h3>
 
             <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="text-sm font-medium text-blue-900 mb-2">
+              <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
+                <div className="text-sm font-medium text-gray-900 mb-2">
                   Customer would receive {simulationResult.emails.length} email
                   {simulationResult.emails.length !== 1 ? "s" : ""} over{" "}
                   {simulationResult.totalDays} day

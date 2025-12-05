@@ -6,7 +6,32 @@ export const saveConversation = mutation({
   args: {
     userId: v.id("users"),
     conversationId: v.union(v.id("aiConversations"), v.null()),
-    messages: v.array(v.any()), // Use v.any() to accept flexible message structure
+    messages: v.array(
+      v.object({
+        role: v.string(),
+        content: v.string(),
+        timestamp: v.string(),
+        reasoning: v.optional(v.string()),
+        functionCalls: v.optional(
+          v.array(
+            v.object({
+              name: v.string(),
+              result: v.union(
+                v.string(),
+                v.number(),
+                v.boolean(),
+                v.null(),
+                v.object({
+                  success: v.boolean(),
+                  message: v.optional(v.string()),
+                  data: v.optional(v.string()),
+                })
+              ),
+            })
+          )
+        ),
+      })
+    ),
     conversationType: v.optional(v.string()),
     status: v.optional(v.string()),
   },
@@ -18,6 +43,7 @@ export const saveConversation = mutation({
       role: msg.role,
       content: msg.content,
       timestamp: msg.timestamp,
+      reasoning: msg.reasoning,
       functionCalls: msg.functionCalls,
     }));
     

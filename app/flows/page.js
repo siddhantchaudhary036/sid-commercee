@@ -154,7 +154,7 @@ function StatCard({ label, value, icon }) {
 function EmptyState() {
   return (
     <div className="text-center py-12 border border-gray-200 rounded-lg">
-      <div className="text-4xl mb-4">⚡</div>
+      <Zap className="w-12 h-12 text-gray-400 mx-auto mb-4" />
       <h3 className="text-sm font-semibold text-gray-900 mb-2">No flows yet</h3>
       <p className="text-sm text-gray-600 mb-6">
         Create your first automated flow to engage customers
@@ -172,7 +172,7 @@ function EmptyState() {
 function EmptySearchState({ searchTerm, statusFilter, onClear }) {
   return (
     <div className="text-center py-12 border border-gray-200 rounded-lg">
-      <div className="text-4xl mb-4">🔍</div>
+      <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
       <h3 className="text-sm font-semibold text-gray-900 mb-2">No flows found</h3>
       <p className="text-sm text-gray-600 mb-6">
         {searchTerm && `No flows match "${searchTerm}"`}

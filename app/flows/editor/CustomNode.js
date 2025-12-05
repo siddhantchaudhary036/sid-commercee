@@ -1,10 +1,8 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
-import { Mail, Clock, GitBranch, Zap, Settings } from "lucide-react";
-import NodeConfigModal from "./NodeConfigModal";
+import { Mail, Clock, GitBranch, Zap } from "lucide-react";
 
-function CustomNode({ id, data, isConnectable }) {
-  const [showConfig, setShowConfig] = useState(false);
+function CustomNode({ id, data, isConnectable, selected }) {
 
   const getNodeIcon = (type) => {
     switch (type) {
@@ -24,13 +22,13 @@ function CustomNode({ id, data, isConnectable }) {
   const getNodeColor = (type) => {
     switch (type) {
       case "trigger":
-        return "bg-yellow-100 border-yellow-300 text-yellow-800";
+        return "bg-gray-50 border-gray-400 text-gray-900";
       case "email":
-        return "bg-blue-100 border-blue-300 text-blue-800";
+        return "bg-white border-gray-300 text-gray-900";
       case "delay":
-        return "bg-purple-100 border-purple-300 text-purple-800";
+        return "bg-gray-100 border-gray-300 text-gray-900";
       case "condition":
-        return "bg-green-100 border-green-300 text-green-800";
+        return "bg-gray-50 border-gray-400 text-gray-900";
       default:
         return "bg-gray-100 border-gray-300 text-gray-800";
     }
@@ -44,7 +42,7 @@ function CustomNode({ id, data, isConnectable }) {
         return data.segmentName || data.triggerType || "Click to configure";
       case "email":
         if (data.templateName) {
-          return `📧 ${data.templateName}`;
+          return data.templateName;
         }
         return data.subject || "Click to select template";
       case "delay":
@@ -61,36 +59,29 @@ function CustomNode({ id, data, isConnectable }) {
   const nodeType = data.nodeType || "trigger";
 
   return (
-    <>
-      <div
-        className={`px-4 py-3 shadow-md rounded-lg border-2 min-w-[200px] hover:shadow-lg transition ${getNodeColor(
-          nodeType
-        )}`}
-      >
-        {/* Input Handle (except for trigger) */}
-        {nodeType !== "trigger" && (
-          <Handle
-            type="target"
-            position={Position.Top}
-            isConnectable={isConnectable}
-            className="w-3 h-3 !bg-gray-600"
-          />
-        )}
+    <div
+      className={`px-4 py-3 shadow-md rounded-lg border-2 min-w-[200px] hover:shadow-lg transition ${getNodeColor(
+        nodeType
+      )} ${selected ? "ring-2 ring-gray-900" : ""}`}
+    >
+      {/* Input Handle (except for trigger) */}
+      {nodeType !== "trigger" && (
+        <Handle
+          type="target"
+          position={Position.Top}
+          isConnectable={isConnectable}
+          className="w-3 h-3 !bg-gray-600"
+        />
+      )}
 
-        <div 
-          onClick={() => setShowConfig(true)}
-          className="cursor-pointer"
-        >
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <div className="flex items-center gap-2">
-              {getNodeIcon(nodeType)}
-              <div className="font-medium text-sm">{data.label}</div>
-            </div>
-            <Settings className="w-3 h-3 opacity-50" />
-          </div>
-
-          <div className="text-xs opacity-75 truncate">{getNodePreview()}</div>
+      <div className="cursor-pointer">
+        <div className="flex items-center gap-2 mb-1">
+          {getNodeIcon(nodeType)}
+          <div className="font-medium text-sm">{data.label}</div>
         </div>
+
+        <div className="text-xs opacity-75 truncate">{getNodePreview()}</div>
+      </div>
 
         {/* Output Handle */}
         <Handle
@@ -100,50 +91,40 @@ function CustomNode({ id, data, isConnectable }) {
           className="w-3 h-3 !bg-gray-600"
         />
 
-        {/* Condition node has two outputs */}
-        {nodeType === "condition" && (
-          <>
-            <Handle
-              type="source"
-              position={Position.Right}
-              id="yes"
-              isConnectable={isConnectable}
-              className="w-3 h-3 !bg-green-600"
-              style={{ top: "50%" }}
-            />
-            <div
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full ml-2 text-xs font-medium text-green-600"
-              style={{ pointerEvents: "none" }}
-            >
-              Yes
-            </div>
-            <Handle
-              type="source"
-              position={Position.Left}
-              id="no"
-              isConnectable={isConnectable}
-              className="w-3 h-3 !bg-red-600"
-              style={{ top: "50%" }}
-            />
-            <div
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full mr-2 text-xs font-medium text-red-600"
-              style={{ pointerEvents: "none" }}
-            >
-              No
-            </div>
-          </>
-        )}
-      </div>
-
-      {showConfig && (
-        <NodeConfigModal
-          nodeId={id}
-          nodeType={nodeType}
-          nodeData={data}
-          onClose={() => setShowConfig(false)}
-        />
+      {/* Condition node has two outputs */}
+      {nodeType === "condition" && (
+        <>
+          <Handle
+            type="source"
+            position={Position.Right}
+            id="yes"
+            isConnectable={isConnectable}
+            className="w-3 h-3 !bg-gray-900"
+            style={{ top: "50%" }}
+          />
+          <div
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full ml-2 text-xs font-medium text-gray-900"
+            style={{ pointerEvents: "none" }}
+          >
+            Yes
+          </div>
+          <Handle
+            type="source"
+            position={Position.Left}
+            id="no"
+            isConnectable={isConnectable}
+            className="w-3 h-3 !bg-gray-600"
+            style={{ top: "50%" }}
+          />
+          <div
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full mr-2 text-xs font-medium text-gray-600"
+            style={{ pointerEvents: "none" }}
+          >
+            No
+          </div>
+        </>
       )}
-    </>
+    </div>
   );
 }
 

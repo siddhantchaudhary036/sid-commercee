@@ -3,6 +3,19 @@ import { query, mutation } from "./_generated/server";
 import { api } from "./_generated/api";
 
 /**
+ * Helper function to check if a value is in an array
+ */
+function isValueInArray(
+  fieldValue: unknown,
+  conditionValue: string | number | boolean | string[] | number[]
+): boolean {
+  if (!Array.isArray(conditionValue)) return false;
+  
+  // Check if fieldValue matches any element in the array
+  return conditionValue.some((val) => val === fieldValue);
+}
+
+/**
  * List all segments for a user
  */
 export const list = query({
@@ -42,7 +55,13 @@ export const previewSegment = query({
       v.object({
         field: v.string(),
         operator: v.string(),
-        value: v.any(),
+        value: v.union(
+          v.string(),
+          v.number(),
+          v.boolean(),
+          v.array(v.string()),
+          v.array(v.number())
+        ),
       })
     ),
   },
@@ -77,7 +96,7 @@ export const previewSegment = query({
             return Number(fieldValue) <= Number(conditionValue);
           case "contains":
             if (Array.isArray(fieldValue)) {
-              return fieldValue.includes(conditionValue);
+              return fieldValue.includes(conditionValue as any);
             }
             return String(fieldValue)
               .toLowerCase()
@@ -91,9 +110,7 @@ export const previewSegment = query({
               .toLowerCase()
               .endsWith(String(conditionValue).toLowerCase());
           case "in":
-            return Array.isArray(conditionValue)
-              ? conditionValue.includes(fieldValue)
-              : false;
+            return isValueInArray(fieldValue, conditionValue);
           default:
             return true;
         }
@@ -118,7 +135,13 @@ export const create = mutation({
       v.object({
         field: v.string(),
         operator: v.string(),
-        value: v.any(),
+        value: v.union(
+          v.string(),
+          v.number(),
+          v.boolean(),
+          v.array(v.string()),
+          v.array(v.number())
+        ),
       })
     ),
     aiGenerated: v.optional(v.boolean()),
@@ -162,7 +185,13 @@ export const update = mutation({
         v.object({
           field: v.string(),
           operator: v.string(),
-          value: v.any(),
+          value: v.union(
+            v.string(),
+            v.number(),
+            v.boolean(),
+            v.array(v.string()),
+            v.array(v.number())
+          ),
         })
       )
     ),
@@ -253,7 +282,7 @@ export const getCustomersInSegment = query({
             return Number(fieldValue) <= Number(conditionValue);
           case "contains":
             if (Array.isArray(fieldValue)) {
-              return fieldValue.includes(conditionValue);
+              return fieldValue.includes(conditionValue as any);
             }
             return String(fieldValue)
               .toLowerCase()
@@ -267,9 +296,7 @@ export const getCustomersInSegment = query({
               .toLowerCase()
               .endsWith(String(conditionValue).toLowerCase());
           case "in":
-            return Array.isArray(conditionValue)
-              ? conditionValue.includes(fieldValue)
-              : false;
+            return isValueInArray(fieldValue, conditionValue);
           default:
             return true;
         }

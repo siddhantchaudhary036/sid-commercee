@@ -90,7 +90,18 @@ export const fetchInsightsData = query({
 export const storeInsights = mutation({
   args: {
     userId: v.id("users"),
-    insights: v.array(v.any()),
+    insights: v.array(
+      v.object({
+        type: v.string(),
+        priority: v.string(),
+        title: v.string(),
+        finding: v.string(),
+        evidence: v.string(),
+        whyItMatters: v.string(),
+        recommendation: v.string(),
+        expectedImpact: v.string(),
+      })
+    ),
   },
   handler: async (ctx, { userId, insights }) => {
     // Delete old insights for this user

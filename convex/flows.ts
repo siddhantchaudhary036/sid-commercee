@@ -26,14 +26,33 @@ export const list = query({
 });
 
 /**
- * Get a single flow by ID
+ * Get a single flow by ID with its nodes and edges
  */
 export const getById = query({
   args: {
     id: v.id("flows"),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const flow = await ctx.db.get(args.id);
+    if (!flow) return null;
+
+    // Get all nodes for this flow
+    const nodes = await ctx.db
+      .query("flowNodes")
+      .withIndex("by_flow", (q) => q.eq("flowId", args.id))
+      .collect();
+
+    // Get all edges for this flow
+    const edges = await ctx.db
+      .query("flowEdges")
+      .withIndex("by_flow", (q) => q.eq("flowId", args.id))
+      .collect();
+
+    return {
+      ...flow,
+      nodes,
+      edges,
+    };
   },
 });
 
@@ -76,46 +95,59 @@ export const getStats = query({
 });
 
 /**
- * Create a new flow
+ * Create a new flow with nodes and edges
  */
 export const create = mutation({
   args: {
     userId: v.id("users"),
     name: v.string(),
     description: v.optional(v.string()),
-    triggerType: v.string(),
-    triggerConfig: v.any(),
-    flowDefinition: v.object({
-      nodes: v.array(
-        v.object({
-          id: v.string(),
-          type: v.string(),
-          data: v.any(),
-          position: v.object({ x: v.float64(), y: v.float64() }),
-          measured: v.optional(v.object({ width: v.float64(), height: v.float64() })),
-        })
-      ),
-      edges: v.array(
-        v.object({
-          id: v.string(),
-          source: v.string(),
-          target: v.string(),
-          sourceHandle: v.optional(v.string()),
-        })
-      ),
-    }),
+    nodes: v.array(
+      v.object({
+        nodeId: v.string(),
+        type: v.string(),
+        // Trigger node fields
+        triggerType: v.optional(v.string()),
+        segmentId: v.optional(v.id("segments")),
+        segmentName: v.optional(v.string()),
+        // Email node fields
+        emailTemplateId: v.optional(v.id("emailTemplates")),
+        emailSubject: v.optional(v.string()),
+        emailName: v.optional(v.string()),
+        // Delay node fields
+        delayDays: v.optional(v.number()),
+        delayHours: v.optional(v.number()),
+        delayName: v.optional(v.string()),
+        // Condition node fields
+        conditionType: v.optional(v.string()),
+        conditionName: v.optional(v.string()),
+        // Position
+        positionX: v.float64(),
+        positionY: v.float64(),
+        width: v.optional(v.float64()),
+        height: v.optional(v.float64()),
+      })
+    ),
+    edges: v.array(
+      v.object({
+        edgeId: v.string(),
+        sourceNodeId: v.string(),
+        targetNodeId: v.string(),
+        sourceHandle: v.optional(v.string()),
+        animated: v.optional(v.boolean()),
+        label: v.optional(v.string()),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     const now = new Date().toISOString();
 
+    // Create the flow
     const flowId = await ctx.db.insert("flows", {
       userId: args.userId,
       name: args.name,
       description: args.description,
       status: "draft",
-      triggerType: args.triggerType,
-      triggerConfig: args.triggerConfig,
-      flowDefinition: args.flowDefinition,
       totalRecipients: 0,
       completionRate: 0,
       totalRevenue: 0,
@@ -123,12 +155,53 @@ export const create = mutation({
       updatedAt: now,
     });
 
+    // Create all nodes
+    for (const node of args.nodes) {
+      await ctx.db.insert("flowNodes", {
+        flowId,
+        nodeId: node.nodeId,
+        type: node.type,
+        triggerType: node.triggerType,
+        segmentId: node.segmentId,
+        segmentName: node.segmentName,
+        emailTemplateId: node.emailTemplateId,
+        emailSubject: node.emailSubject,
+        emailName: node.emailName,
+        delayDays: node.delayDays,
+        delayHours: node.delayHours,
+        delayName: node.delayName,
+        conditionType: node.conditionType,
+        conditionName: node.conditionName,
+        positionX: node.positionX,
+        positionY: node.positionY,
+        width: node.width,
+        height: node.height,
+        userId: args.userId,
+        createdAt: now,
+      });
+    }
+
+    // Create all edges
+    for (const edge of args.edges) {
+      await ctx.db.insert("flowEdges", {
+        flowId,
+        edgeId: edge.edgeId,
+        sourceNodeId: edge.sourceNodeId,
+        targetNodeId: edge.targetNodeId,
+        sourceHandle: edge.sourceHandle,
+        animated: edge.animated,
+        label: edge.label,
+        userId: args.userId,
+        createdAt: now,
+      });
+    }
+
     return flowId;
   },
 });
 
 /**
- * Update an existing flow
+ * Update an existing flow (metadata only)
  */
 export const update = mutation({
   args: {
@@ -136,29 +209,6 @@ export const update = mutation({
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     status: v.optional(v.string()),
-    triggerType: v.optional(v.string()),
-    triggerConfig: v.optional(v.any()),
-    flowDefinition: v.optional(
-      v.object({
-        nodes: v.array(
-          v.object({
-            id: v.string(),
-            type: v.string(),
-            data: v.any(),
-            position: v.object({ x: v.float64(), y: v.float64() }),
-            measured: v.optional(v.object({ width: v.float64(), height: v.float64() })),
-          })
-        ),
-        edges: v.array(
-          v.object({
-            id: v.string(),
-            source: v.string(),
-            target: v.string(),
-            sourceHandle: v.optional(v.string()),
-          })
-        ),
-      })
-    ),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
@@ -178,7 +228,122 @@ export const update = mutation({
 });
 
 /**
- * Delete a flow
+ * Update flow nodes and edges (for visual editor)
+ */
+export const updateNodesAndEdges = mutation({
+  args: {
+    flowId: v.id("flows"),
+    nodes: v.array(
+      v.object({
+        nodeId: v.string(),
+        type: v.string(),
+        triggerType: v.optional(v.string()),
+        segmentId: v.optional(v.id("segments")),
+        segmentName: v.optional(v.string()),
+        emailTemplateId: v.optional(v.id("emailTemplates")),
+        emailSubject: v.optional(v.string()),
+        emailName: v.optional(v.string()),
+        delayDays: v.optional(v.number()),
+        delayHours: v.optional(v.number()),
+        delayName: v.optional(v.string()),
+        conditionType: v.optional(v.string()),
+        conditionName: v.optional(v.string()),
+        positionX: v.float64(),
+        positionY: v.float64(),
+        width: v.optional(v.float64()),
+        height: v.optional(v.float64()),
+      })
+    ),
+    edges: v.array(
+      v.object({
+        edgeId: v.string(),
+        sourceNodeId: v.string(),
+        targetNodeId: v.string(),
+        sourceHandle: v.optional(v.string()),
+        animated: v.optional(v.boolean()),
+        label: v.optional(v.string()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const flow = await ctx.db.get(args.flowId);
+    if (!flow) {
+      throw new Error("Flow not found");
+    }
+
+    const now = new Date().toISOString();
+
+    // Delete existing nodes and edges
+    const existingNodes = await ctx.db
+      .query("flowNodes")
+      .withIndex("by_flow", (q) => q.eq("flowId", args.flowId))
+      .collect();
+    
+    for (const node of existingNodes) {
+      await ctx.db.delete(node._id);
+    }
+
+    const existingEdges = await ctx.db
+      .query("flowEdges")
+      .withIndex("by_flow", (q) => q.eq("flowId", args.flowId))
+      .collect();
+    
+    for (const edge of existingEdges) {
+      await ctx.db.delete(edge._id);
+    }
+
+    // Insert new nodes
+    for (const node of args.nodes) {
+      await ctx.db.insert("flowNodes", {
+        flowId: args.flowId,
+        nodeId: node.nodeId,
+        type: node.type,
+        triggerType: node.triggerType,
+        segmentId: node.segmentId,
+        segmentName: node.segmentName,
+        emailTemplateId: node.emailTemplateId,
+        emailSubject: node.emailSubject,
+        emailName: node.emailName,
+        delayDays: node.delayDays,
+        delayHours: node.delayHours,
+        delayName: node.delayName,
+        conditionType: node.conditionType,
+        conditionName: node.conditionName,
+        positionX: node.positionX,
+        positionY: node.positionY,
+        width: node.width,
+        height: node.height,
+        userId: flow.userId,
+        createdAt: now,
+      });
+    }
+
+    // Insert new edges
+    for (const edge of args.edges) {
+      await ctx.db.insert("flowEdges", {
+        flowId: args.flowId,
+        edgeId: edge.edgeId,
+        sourceNodeId: edge.sourceNodeId,
+        targetNodeId: edge.targetNodeId,
+        sourceHandle: edge.sourceHandle,
+        animated: edge.animated,
+        label: edge.label,
+        userId: flow.userId,
+        createdAt: now,
+      });
+    }
+
+    // Update flow timestamp
+    await ctx.db.patch(args.flowId, {
+      updatedAt: now,
+    });
+
+    return args.flowId;
+  },
+});
+
+/**
+ * Delete a flow and all its nodes/edges
  */
 export const deleteFlow = mutation({
   args: {
@@ -190,7 +355,29 @@ export const deleteFlow = mutation({
       throw new Error("Flow not found");
     }
 
+    // Delete all nodes
+    const nodes = await ctx.db
+      .query("flowNodes")
+      .withIndex("by_flow", (q) => q.eq("flowId", args.id))
+      .collect();
+    
+    for (const node of nodes) {
+      await ctx.db.delete(node._id);
+    }
+
+    // Delete all edges
+    const edges = await ctx.db
+      .query("flowEdges")
+      .withIndex("by_flow", (q) => q.eq("flowId", args.id))
+      .collect();
+    
+    for (const edge of edges) {
+      await ctx.db.delete(edge._id);
+    }
+
+    // Delete the flow
     await ctx.db.delete(args.id);
+    
     return { success: true };
   },
 });
@@ -232,6 +419,12 @@ export const getAnalytics = query({
       throw new Error("Flow not found");
     }
 
+    // Get nodes for this flow
+    const nodes = await ctx.db
+      .query("flowNodes")
+      .withIndex("by_flow", (q) => q.eq("flowId", args.flowId))
+      .collect();
+
     // Get historical performance records
     const historicalPerformance = await ctx.db
       .query("flowPerformance")
@@ -241,23 +434,22 @@ export const getAnalytics = query({
 
     // Calculate step-by-step breakdown
     const totalRecipients = flow.totalRecipients || 0;
-    const steps = flow.flowDefinition.nodes
+    const steps = nodes
       .filter((n) => n.type !== "trigger")
       .map((node, index) => {
         // Simulate drop-off (in real app, this would come from tracking data)
-        // Each step loses some percentage of users
         const dropOffRate = 0.1 + Math.random() * 0.15; // 10-25% drop-off per step
         const remainingPercentage = Math.pow(1 - dropOffRate, index + 1);
         const recipients = Math.round(totalRecipients * remainingPercentage);
         const percentage = totalRecipients > 0 ? (recipients / totalRecipients) * 100 : 0;
 
         return {
-          nodeId: node.id,
+          nodeId: node.nodeId,
           type: node.type,
-          name: node.data?.name || `${node.type} ${index + 1}`,
+          name: node.emailName || node.delayName || node.conditionName || `${node.type} ${index + 1}`,
           recipients,
           percentage: Math.round(percentage),
-          isDropOffPoint: node.id === flow.dropOffNodeId,
+          isDropOffPoint: node.nodeId === flow.dropOffNodeId,
         };
       });
 
@@ -294,7 +486,7 @@ export const getAnalytics = query({
 });
 
 /**
- * Duplicate a flow
+ * Duplicate a flow with all its nodes and edges
  */
 export const duplicate = mutation({
   args: {
@@ -308,20 +500,69 @@ export const duplicate = mutation({
 
     const now = new Date().toISOString();
 
+    // Create new flow
     const newFlowId = await ctx.db.insert("flows", {
       userId: originalFlow.userId,
       name: `${originalFlow.name} (Copy)`,
       description: originalFlow.description,
       status: "draft",
-      triggerType: originalFlow.triggerType,
-      triggerConfig: originalFlow.triggerConfig,
-      flowDefinition: originalFlow.flowDefinition,
       totalRecipients: 0,
       completionRate: 0,
       totalRevenue: 0,
       createdAt: now,
       updatedAt: now,
     });
+
+    // Copy all nodes
+    const originalNodes = await ctx.db
+      .query("flowNodes")
+      .withIndex("by_flow", (q) => q.eq("flowId", args.flowId))
+      .collect();
+
+    for (const node of originalNodes) {
+      await ctx.db.insert("flowNodes", {
+        flowId: newFlowId,
+        nodeId: node.nodeId,
+        type: node.type,
+        triggerType: node.triggerType,
+        segmentId: node.segmentId,
+        segmentName: node.segmentName,
+        emailTemplateId: node.emailTemplateId,
+        emailSubject: node.emailSubject,
+        emailName: node.emailName,
+        delayDays: node.delayDays,
+        delayHours: node.delayHours,
+        delayName: node.delayName,
+        conditionType: node.conditionType,
+        conditionName: node.conditionName,
+        positionX: node.positionX,
+        positionY: node.positionY,
+        width: node.width,
+        height: node.height,
+        userId: originalFlow.userId,
+        createdAt: now,
+      });
+    }
+
+    // Copy all edges
+    const originalEdges = await ctx.db
+      .query("flowEdges")
+      .withIndex("by_flow", (q) => q.eq("flowId", args.flowId))
+      .collect();
+
+    for (const edge of originalEdges) {
+      await ctx.db.insert("flowEdges", {
+        flowId: newFlowId,
+        edgeId: edge.edgeId,
+        sourceNodeId: edge.sourceNodeId,
+        targetNodeId: edge.targetNodeId,
+        sourceHandle: edge.sourceHandle,
+        animated: edge.animated,
+        label: edge.label,
+        userId: originalFlow.userId,
+        createdAt: now,
+      });
+    }
 
     return newFlowId;
   },
